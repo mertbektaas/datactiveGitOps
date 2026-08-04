@@ -11,3 +11,24 @@ Kullanıcı branch ve DB schema'sı seçer → kod GitHub Actions ile build edil
 - `workflows/` — GitHub Actions CI/CD dosyaları
 - `manifests/` — Kubernetes Kustomize manifestleri (base + overlays)
 - `docs/` — Sözleşmeler ve dokümantasyon
+
+## Kurulum
+
+### Backend (.NET 8)
+```bash
+cd backend
+dotnet restore
+dotnet run
+```
+API: http://localhost:5000
+
+### Frontend (Expo + React)
+```bash
+cd frontend
+npm install
+npm start
+```
+
+## Geliştirme
+
+Branch stratejisi ve katkı kuralları için bkz: [CONTRIBUTING.md](CONTRIBUTING.md)
