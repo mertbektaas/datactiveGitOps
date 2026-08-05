@@ -59,10 +59,12 @@ runs:
         git clone --depth 1 --branch "${{ inputs.branch_server }}" \
           "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
-    - name: Buildkitd başlat
+    - name: Buildkitd başlat (rootless)
       shell: bash
       run: |
-        nohup buildkitd > /tmp/buildkitd.log 2>&1 &
+        # Rootless buildkit: privileged gerekmez, mount izni sorununu aşar
+        export ROOTLESS_MODE=1
+        nohup buildkitd --oci-worker-rootless --rootless > /tmp/buildkitd.log 2>&1 &
         for i in $(seq 1 30); do
           if buildctl debug workers >/dev/null 2>&1; then
             echo "buildkitd hazır"
