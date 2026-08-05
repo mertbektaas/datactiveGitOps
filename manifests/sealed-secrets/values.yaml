@@ -1,0 +1,11 @@
+# Sealed Secrets controller için Helm değerleri
+# Kurulum: helm install sealed-secrets sealed-secrets/sealed-secrets \
+#   --namespace kube-system \
+#   --values manifests/sealed-secrets/values.yaml
+
+# Controller adını sabitle (net isimlendirme için)
+fullnameOverride: sealed-secrets-controller
+
+controller:
+  service:
+    type: ClusterIP
