@@ -24,17 +24,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Add MemoryCache for GitHub API Rate Limit protection (K1.6)
 builder.Services.AddMemoryCache();
 
-// Register Build Provider (Solution 1 for K1.7: MockBuildProvider)
-builder.Services.AddScoped<IBuildProvider, MockBuildProvider>();
-
-// Configure GitHub Options & Typed HttpClient Service (K1.5)
+// Configure GitHub Options (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
 
+// Configure GitHub Typed HttpClient Service (K1.5)
 builder.Services.AddHttpClient<IGitHubService, GitHubService>((sp, client) =>
 {
     var options = sp.GetRequiredService<IOptions<GitHubOptions>>().Value;
-    
-    // Read GITHUB_TOKEN environment variable if appsettings token is empty
     var token = !string.IsNullOrEmpty(options.Token) 
         ? options.Token 
         : Environment.GetEnvironmentVariable("GITHUB_TOKEN");
@@ -48,6 +44,32 @@ builder.Services.AddHttpClient<IGitHubService, GitHubService>((sp, client) =>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 });
+
+// Configure Build Provider with Feature Switch (K1.8)
+var useMockBuildProvider = builder.Configuration.GetValue<bool>("UseMockBuildProvider", false);
+if (useMockBuildProvider)
+{
+    builder.Services.AddScoped<IBuildProvider, MockBuildProvider>();
+}
+else
+{
+    builder.Services.AddHttpClient<IBuildProvider, GitHubBuildProvider>((sp, client) =>
+    {
+        var options = sp.GetRequiredService<IOptions<GitHubOptions>>().Value;
+        var token = !string.IsNullOrEmpty(options.Token) 
+            ? options.Token 
+            : Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
+        client.BaseAddress = new Uri("https://api.github.com/");
+        client.DefaultRequestHeaders.Add("User-Agent", "DatactiveGitOps-Backend");
+        client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+    });
+}
 
 // Solution 2: ASP.NET Core Built-in HealthChecks Service
 builder.Services.AddHealthChecks();
@@ -108,8 +130,8 @@ app.MapGet("/api/branches", async (string? repo, IGitHubService gitHubService, I
     }
 });
 
-// [FAZ-2] K1.7 — Mock Build Dispatch Endpoint
-app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider) =>
+// [FAZ-3] K1.8 — Real/Mock Build Dispatch Endpoint
+app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider, ILogger<Program> logger) =>
 {
     if (string.IsNullOrWhiteSpace(request.BranchWeb) ||
         string.IsNullOrWhiteSpace(request.BranchServer) ||
@@ -119,8 +141,26 @@ app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildP
         return Results.BadRequest(new { error = "Tüm alanlar (branch_web, branch_server, schema, tag) zorunludur." });
     }
 
-    var result = await buildProvider.DispatchBuildAsync(request);
-    return Results.Ok(result);
+    try
+    {
+        var result = await buildProvider.DispatchBuildAsync(request);
+        return Results.Ok(result);
+    }
+    catch (KeyNotFoundException ex)
+    {
+        logger.LogWarning(ex, "Dispatch target workflow or repository not found.");
+        return Results.NotFound(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        logger.LogError(ex, "GitHub Authorization error during build dispatch.");
+        return Results.Problem(detail: ex.Message, statusCode: 502, title: "GitHub API Yetkilendirme Hatası");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error dispatching build for Tag: {Tag}", request.Tag);
+        return Results.Problem(detail: "Build tetikleme sırasında hata oluştu: " + ex.Message, statusCode: 502, title: "Build Tetikleme Hatası");
+    }
 });
 
 app.Run();
