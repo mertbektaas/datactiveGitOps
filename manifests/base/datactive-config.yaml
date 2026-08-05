@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datactive-config
+data:
+  DQLSchema: "datactive_mix_tenant_20260728"
+  CustomerMetadataSchema: "datactive_mix_tenant_20260728."
+  ORACLEDataSchema: "datactive_mix_tenant_20260728."
+  ConnectionStrings__DBType: "Postgre"
+  FeatureFlags__AMLFeatures: "true"
+  FeatureFlags__FraudFeatures: "false"
+  LoggerLogType: "5"
+  ConnectionStrings__ClientUrl: "PLACEHOLDER_CLIENT_URL"
+  Constants__ReduceFalsePositiveModelFileName: "ReduceFalsePositiveModel"
+  Constants__ReduceFalsePositiveModelFolderPath: "/app/MLM"
+  DefaultConnectionHost: "PLACEHOLDER_HOST"
+  DefaultConnectionPort: "PLACEHOLDER_PORT"
+  DefaultConnectionDatabase: "PLACEHOLDER_DB"
+  DefaultConnectionUser: "PLACEHOLDER_USER"
+  DefaultConnectionPassword: "PLACEHOLDER_PASSWORD"
+  IsCacheEnabledForInitialDataForTest: "true"
+  IsCalculateKYCScoreForAllCustomers: "false"
