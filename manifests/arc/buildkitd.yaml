@@ -1,0 +1,74 @@
+# Buildkitd daemon — cluster'da daemon'sız build sunucusu
+# Job'lar (buildctl) bu servise bağlanarak image build eder.
+# Rootless: privileged pod gerekmez.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildkitd
+  namespace: arc-runners
+spec:
+  selector:
+    app: buildkitd
+  ports:
+    - name: grpc
+      port: 1234
+      targetPort: 1234
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildkitd
+  namespace: arc-runners
+  labels:
+    app: buildkitd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buildkitd
+  template:
+    metadata:
+      labels:
+        app: buildkitd
+    spec:
+      containers:
+        - name: buildkitd
+          image: moby/buildkit:v0.32.2
+          command: ["buildkitd", "--oci-worker=true", "--containerd-worker=false"]
+          ports:
+            - containerPort: 1234
+              name: grpc
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # Buildkitd build sırasında mount/cgroup işlemleri yapar.
+          # Sadece bu daemon pod'una özel (runner pod'una değil).
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          volumeMounts:
+            - name: buildkit-data
+              mountPath: /var/lib/buildkit
+      volumes:
+        - name: buildkit-data
+          persistentVolumeClaim:
+            claimName: buildkitd-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: buildkitd-pvc
+  namespace: arc-runners
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi

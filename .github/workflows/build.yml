@@ -44,3 +44,4 @@ jobs:
           branch_server: ${{ inputs.branch_server }}
           tag: ${{ inputs.tag }}
           token: ${{ secrets.PAT_TOKEN }}
+          image_name: datactive-registry:5000/datateam/datactive.web

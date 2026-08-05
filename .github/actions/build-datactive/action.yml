@@ -59,22 +59,11 @@ runs:
         git clone --depth 1 --branch "${{ inputs.branch_server }}" \
           "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
-    - name: Buildkitd başlat (rootless)
+    - name: Image build (buildctl → buildkitd daemon)
       shell: bash
-      run: |
-        # Rootless buildkit: privileged gerekmez, mount izni sorununu aşar
-        export ROOTLESS_MODE=1
-        nohup buildkitd --oci-worker-rootless --rootless > /tmp/buildkitd.log 2>&1 &
-        for i in $(seq 1 30); do
-          if buildctl debug workers >/dev/null 2>&1; then
-            echo "buildkitd hazır"
-            break
-          fi
-          sleep 1
-        done
-
-    - name: Image build (buildctl)
-      shell: bash
+      env:
+        # Cluster'daki buildkitd daemon'ı (arc-runners namespace)
+        BUILDKIT_HOST: tcp://buildkitd.arc-runners.svc:1234
       run: |
         buildctl build \
           --frontend dockerfile.v0 \
@@ -82,10 +71,9 @@ runs:
           --local dockerfile="${{ env.workdir }}/datactive.core.server/configurations" \
           --output type=image,name="${{ inputs.image_name }}:${{ inputs.tag }}",push=true
 
-    - name: Workdir temizle + buildkitd durdur
+    - name: Workdir temizle
       shell: bash
       if: always()
       run: |
-        pkill buildkitd 2>/dev/null || true
         rm -rf "${{ env.workdir }}"
         echo "Temp workspace temizlendi."
