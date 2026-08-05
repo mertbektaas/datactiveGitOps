@@ -59,9 +59,14 @@ runs:
         git clone --depth 1 --branch "${{ inputs.branch_server }}" \
           "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
-    - name: Buildkitd başlat
+    - name: Buildkit kur + buildkitd başlat
       shell: bash
       run: |
+        # Buildkit resmi binary (release asset) — arm64
+        curl -sSLo /tmp/buildkit.tar.gz \
+          "https://github.com/moby/buildkit/releases/download/v0.32.2/buildkit-v0.32.2.linux-arm64.tar.gz"
+        tar -xzf /tmp/buildkit.tar.gz -C /usr/local --strip-components=1
+        which buildkitd buildctl
         nohup buildkitd > /tmp/buildkitd.log 2>&1 &
         for i in $(seq 1 30); do
           if buildctl debug workers >/dev/null 2>&1; then
