@@ -163,6 +163,59 @@ app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildP
     }
 });
 
+// [FAZ-3] K1.9 — Live Build Status Endpoint with On-Demand Refresh & DB Sync
+app.MapGet("/api/builds/{id}", async (string id, AppDbContext dbContext, IGitHubService gitHubService, ILogger<Program> logger) =>
+{
+    BuildHistory? buildRecord = null;
+
+    if (int.TryParse(id, out var numericId))
+    {
+        buildRecord = await dbContext.BuildHistories.FindAsync(numericId);
+    }
+
+    if (buildRecord == null)
+    {
+        buildRecord = await dbContext.BuildHistories
+            .FirstOrDefaultAsync(b => b.Tag == id || b.Namespace == id);
+    }
+
+    if (buildRecord == null)
+    {
+        return Results.NotFound(new { error = $"Build kaydı '{id}' bulunamadı." });
+    }
+
+    // On-Demand Refresh: If status is not final (queued or in_progress), query live status from GitHub API
+    if (buildRecord.Status == "queued" || buildRecord.Status == "in_progress")
+    {
+        try
+        {
+            var liveStatus = await gitHubService.GetWorkflowRunStatusAsync(buildRecord.Tag);
+            if (!string.IsNullOrEmpty(liveStatus) && liveStatus != buildRecord.Status)
+            {
+                logger.LogInformation("Updating build status for Tag '{Tag}' from '{OldStatus}' to '{NewStatus}' in DB.",
+                    buildRecord.Tag, buildRecord.Status, liveStatus);
+
+                buildRecord.Status = liveStatus;
+                await dbContext.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not refresh live status from GitHub for Tag: {Tag}", buildRecord.Tag);
+        }
+    }
+
+    var response = new BuildStatusDto(
+        BuildId: buildRecord.Id.ToString(),
+        Tag: buildRecord.Tag,
+        Namespace: buildRecord.Namespace,
+        Status: buildRecord.Status,
+        CreatedAt: buildRecord.CreatedAt
+    );
+
+    return Results.Ok(response);
+});
+
 app.Run();
 
 // DTO for Branch Response
