@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     steps:
       - name: Inputs
         run: |
@@ -30,4 +30,11 @@ jobs:
           echo "branch_server=${{ inputs.branch_server }}"
           echo "schema=${{ inputs.schema }}"
           echo "tag=${{ inputs.tag }}"
-          sleep 5
+
+      - name: DatActive Build
+        uses: ./.github/actions/build-datactive
+        with:
+          branch_web: ${{ inputs.branch_web }}
+          branch_server: ${{ inputs.branch_server }}
+          tag: ${{ inputs.tag }}
+          token: ${{ secrets.PAT_TOKEN }}
