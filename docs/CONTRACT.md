@@ -147,7 +147,40 @@ change_detection:
 
 ---
 
-## 7. ArgoCD API Erişim Bilgisi
+## 7. GitHub PAT Yetki Listesi
+
+**Durum: ✅ KARAR VERİLDİ**
+
+```yaml
+github_pat:
+  type: fine-grained
+  repos:
+    - datateam-web
+    - datateam-core.server
+  permissions:
+    metadata: read
+    contents: read
+    actions: write
+  expiration: "30 gün (yenilenir)"
+  storage: "github secret (PAT_TOKEN)"
+  lifecycle: "Geçici — Azure DevOps geçişinde iptal edilecek"
+  principle: "En az yetki; yalnızca gerekli 2 repo, yalnızca gerekli 3 yetki"
+```
+
+**Açıklama:**
+- **Tür:** Fine-grained PAT (repo seçimli)
+- **Erişim:** Sadece `datateam-web` ve `datateam-core.server`
+- **Yetkiler:**
+  - `metadata: read` — Repo bilgileri
+  - `contents: read` — Branch listeleme
+  - `actions: write` — workflow_dispatch tetikleme
+- **Saklama:** GitHub repo secret `PAT_TOKEN` (kodda token YOK)
+- **Süre:** 30 gün, düzenli yenilenir
+- **Ömür:** Geçici — GitHub Actions Azure DevOps ile değiştirileceğinden PAT iptal edilir
+
+---
+
+## 8. ArgoCD API Erişim Bilgisi
 
 **Durum: ⚠️ FAZ 5'TE DOLDURULACAK**
 
