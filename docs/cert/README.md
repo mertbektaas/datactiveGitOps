@@ -1,10 +1,10 @@
-# Sertifika Klasörü
+# Certificate Store
 
-Bu klasör, Sealed Secrets controller'ının **public key**'ini içerir.
+Bu dizin, Sealed Secrets controller'ının **public key**'ini barındırır.
 
-## Kurulum Sonrası
+## Ekleme
 
-Cluster yöneticisi (boss) `docs/SEALED_SECRETS_SETUP.md` rehberindeki 5. adımı uyguladıktan sonra public key buraya kaydedilir:
+Kurulum sonrası `docs/SEALED_SECRETS_SETUP.md` bölümündeki komutla public key alınır ve buraya kaydedilir:
 
 ```bash
 kubeseal --fetch-cert \
@@ -13,7 +13,7 @@ kubeseal --fetch-cert \
   > docs/cert/sealed-secrets-cert.pem
 ```
 
-## Önemli
+## Sınırlamalar
 
-- **Public key** herkese açıktır → repo'da durması GÜVENLİDİR
-- **Private key** asla buraya konmaz → sadece controller'da, yedekleme güvenli yerde yapılır
+- Bu dizine yalnızca **public key** eklenir.
+- **Private key** bu dizine (veya herhangi bir git deposuna) konmaz; güvenli/offline ortamda saklanır.

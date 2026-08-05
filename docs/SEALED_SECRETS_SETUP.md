@@ -1,58 +1,38 @@
-# Sealed Secrets — Kurulum Rehberi
+# Sealed Secrets — Deployment Guide
 
-Bu rehber, Sealed Secrets controller'ının k3s cluster'ına kurulumunu ve kullanıma hazır hale getirilmesini adım adım açıklar.
+Bu doküman, Sealed Secrets controller'ının k3s cluster'ına Helm tabanlı kurulumunu tanımlar.
 
-> ⚠️ **Bu kurulum, cluster yöneticisi (boss/DevOps) tarafından yapılır.** Geliştiricinin cluster'a erişimi yoktur.
+- **Kurulum yapan:** Cluster yöneticisi
+- **Yöntem:** Helm chart (`bitnami/sealed-secrets`)
+- **Hedef namespace:** `kube-system`
 
 ---
 
 ## Ön Koşullar
 
-- k3s cluster çalışır durumda
-- `kubectl` kurulu ve cluster'a bağlı
-- `helm` kurulu (v3+)
-- Cluster üzerinde admin yetkisi
+- Çalışan k3s cluster
+- `kubectl` cluster'a bağlı, admin yetkisi
+- Helm v3+
 
----
+## Kurulum
 
-## 1. Helm Kurulumu (yoksa)
-
-```bash
-# macOS
-brew install helm
-
-# Linux
-curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-# Doğrula
-helm version
-```
-
----
-
-## 2. Sealed Secrets Repo'sunu Tanıt
+### 1. Repository Ekle
 
 ```bash
 helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
 helm repo update
 ```
 
-Bu komut, Helm'e "Sealed Secrets paketlerini bu mağazadan indir" der.
-
----
-
-## 3. Controller'ı Kur
-
-Repo içindeki hazır değerler dosyasıyla kurulum:
+### 2. Controller Kurulumu
 
 ```bash
-# Repo'da: manifests/sealed-secrets/values.yaml
 helm install sealed-secrets sealed-secrets/sealed-secrets \
   --namespace kube-system \
   --values manifests/sealed-secrets/values.yaml
 ```
 
-**values.yaml içeriği:**
+Kullanılan değerler:
+
 ```yaml
 # manifests/sealed-secrets/values.yaml
 fullnameOverride: sealed-secrets-controller
@@ -62,126 +42,70 @@ controller:
     type: ClusterIP
 ```
 
-**Yapılanlar:**
-- `kube-system` namespace'ine kurulur (cluster çekirdek bileşenleriyle aynı yerde)
-- `fullnameOverride` ile controller adı `sealed-secrets-controller` olur (net isimlendirme)
+`fullnameOverride` ile controller adı `sealed-secrets-controller` olarak sabitlenir (kubeseal varsayılanında bu ad beklenir).
 
----
-
-## 4. kubeseal CLI Kurulumu
-
-kubeseal, geliştiricinin şifreleme yaparken kullanacağı komut satırı aracıdır.
+### 3. kubeseal CLI
 
 ```bash
 # macOS
 brew install kubeseal
 
-# Linux (indirme)
+# Linux (v0.27.1 örneği)
 curl -Lo kubeseal.tar.gz \
   https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-linux-amd64.tar.gz
 tar -xzf kubeseal.tar.gz kubeseal
 sudo install -m 755 kubeseal /usr/local/bin/kubeseal
-
-# Doğrula
-kubeseal --version
 ```
 
----
+Not: kubeseal sürümü, controller chart sürümüyle uyumlu olmalıdır.
 
-## 5. Public Key'i Dışa Al ve Repo'ya Koy
+## Anahtar Yönetimi
 
-Public key, geliştiricilerin şifreleme yapması için gereklidir. **Repo'ya konabilir** (açık anahtar).
+### Public Key (Açık Anahtar)
+
+Geliştiricilerin şifreleme yapabilmesi için controller'ın public key'i repo'ya alınır:
 
 ```bash
-# Public key'i al
 kubeseal --fetch-cert \
   --controller-name sealed-secrets-controller \
   --controller-namespace kube-system \
   > docs/cert/sealed-secrets-cert.pem
-
-# Doğrula
-cat docs/cert/sealed-secrets-cert.pem
 ```
 
-> ⚠️ Bu dosya `docs/cert/` altına kaydedilir ve GitHub'a pushlanır. Böylece tüm geliştiriciler bu anahtarla şifreleme yapabilir.
+Dosya `docs/cert/` altında versiyonlanır.
 
----
+### Private Key (Gizli Anahtar)
 
-## 6. ⚠️ KRİTİK: Private Key Yedekleme
+Controller kurulumunda üretilen özel anahtar, mevcut SealedSecret'ların çözülmesi için zorunludur. Aşağıdaki senaryolarda kaybı geri döndürülemez:
 
-Private key, şifreleri çözmeye yarayan **gizli anahtardır**. Kaybolursa:
-- **Tüm mevcut şifreli veriler çözülemez** (felaket!)
-- Cluster yeniden kurulursa aynı anahtar olmadan eski şifreler okunamaz
+- Cluster yeniden kurulumu
+- Controller'ın yeniden deploy edilmesi
+
+Anahtar yedeği:
 
 ```bash
-# Controller'dan private key'i dışa al
 kubectl get secret -n kube-system sealed-secrets-key \
-  -o jsonpath='{.data.tls\.key}' | base64 -d > sealed-secrets-private-key.pem
-
-# Bu dosyayı GÜVENLİ bir yere sakla (1Password, kasada, offline)
-# ⚠️ ASLA GitHub'a pushlama, ASLA e-posta ile gönderme!
+  -o jsonpath='{.data.tls\.key}' | base64 -d > sealed-secrets-key.pem
 ```
 
-**Yedekleme Kuralları:**
-- ❌ Private key repo'ya konmaz
-- ❌ Private key public ortama atılmaz
-- ✅ 1Password / güvenli kasa / offline depolama
+Yedek, güvenli/offline bir ortamda saklanmalıdır. Repository dışında tutulur.
 
----
-
-## 7. Kurulumu Doğrula
+## Doğrulama
 
 ```bash
-# Controller pod'unun çalıştığını kontrol et
-kubectl get pods -n kube-system | grep sealed
+# Pod durumu
+kubectl get pods -n kube-system -l app=sealed-secrets
 
-# Beklenen çıktı:
-# sealed-secrets-controller-xxx Running
-
-# Controller log hatasız mı?
-kubectl logs -n kube-system -l app=sealed-secrets
-
-# Public key dönüyor mu?
+# Public key erişimi
 kubeseal --fetch-cert \
   --controller-name sealed-secrets-controller \
-  --controller-namespace kube-system > /dev/null && echo "OK"
+  --controller-namespace kube-system
 ```
 
----
-
-## 8. Çalışma Akışı (Sonrası)
-
-Kurulum tamamlandıktan sonra geliştirici akışı:
-
-```
-1. Geliştirici: kubeseal ile şifrele
-   kubectl create secret generic testvalue --dry-run=client -o yaml | kubeseal --format yaml > sealedsecret.yaml
-
-2. SealedSecret dosyası GitHub'a pushlanır (şifreli, güvenli)
-
-3. Controller: şifreli dosyayı görür → private key ile çözer → gerçek Secret oluşturur
-```
-
----
-
-## Rollback (Geri Alma)
+## Rollback
 
 ```bash
-# Controller'ı tamamen sil
 helm uninstall sealed-secrets --namespace kube-system
 ```
 
-> ⚠️ Not: Rollback sonrası private key kaybolursa mevcut SealedSecret'lar okunamaz. Private key'i mutlaka sakla.
-
----
-
-## Özet Kontrol Listesi
-
-- [ ] Helm kuruldu
-- [ ] sealed-secrets repo tanıtıldı
-- [ ] Controller `kube-system` içinde çalışıyor
-- [ ] kubeseal CLI kuruldu
-- [ ] Public key `docs/cert/sealed-secrets-cert.pem` olarak repo'da
-- [ ] Private key güvenli yerde yedeklendi
-- [ ] Controller log hatasız
-- [ ] `kubeseal --fetch-cert` public key dönüyor
+Rollback sonrası yeni controller farklı bir private key üretir; mevcut SealedSecret'lar yedeklenen anahtar geri yüklenmeden çözülemez.
