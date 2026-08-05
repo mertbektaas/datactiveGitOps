@@ -1,0 +1,19 @@
+# ARC Controller — Helm Değerleri
+# Kurulum: helm install arc --namespace arc-systems --create-namespace \
+#   --values manifests/arc/controller-values.yaml \
+#   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
+
+controllerManager:
+  nodeSelector:
+    kubernetes.io/os: linux
+
+# Production: controller pod'ları için resource limitleri
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  replicas: 1

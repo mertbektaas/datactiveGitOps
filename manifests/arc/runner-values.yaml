@@ -1,0 +1,57 @@
+# ARC Runner Scale Set — Helm Değerleri
+# Kurulum: helm install arc-runner-set --namespace arc-runners --create-namespace \
+#   --values manifests/arc/runner-values.yaml \
+#   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+
+# Workflow'larda runs-on: arc-runner-set (installation name)
+nameOverride: arc-runner-set
+
+githubConfigUrl: "https://github.com/mertbektaas/datactiveGitOps"
+githubConfigSecret: arc-auth
+
+# --- Autoscaling (production) ---
+runnerScaleSet:
+  # Minimum 0: boştayken runner pod'u YOK, maliyet 0
+  capacity:
+    minRunners: 0
+    maxRunners: 10
+
+  # Job sırasındaki bekleme: runner yoksa job 60 sn içinde başlatılır
+  maxRunnerScaleUpTime: 60s
+
+  # Her job bitiminde pod silinir (ephemeral) — izolasyon
+  podRetention: none
+
+# --- Runner pod şablonu ---
+containerMode:
+  type: kubernetes
+
+template:
+  spec:
+    # Build için yeterli kaynak (2 CPU, 4Gi)
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:2.322.0
+        command: ["/home/runner/run.sh"]
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          readOnlyRootFilesystem: false
+        env:
+          # GitHub'a bağlantı izni (GitHub API dışı egress)
+          - name: RUNNER_UPDATE_PLUGIN_ENABLED
+            value: "false"
+          # Harbor build sırasında erişim (K2.8'de doldurulur)
+          - name: REGISTRY
+            value: "harbor.datactive.net"
+
+# --- Pod dağıtım kuralları (production) ---
+podSecurityContext:
+  fsGroup: 1001

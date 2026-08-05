@@ -26,6 +26,8 @@ kubeconfig
 !docs/SEALED_SECRETS_SETUP.md
 !manifests/sealed-secrets/
 !manifests/sealed-secrets/*
+!manifests/arc/
+!manifests/arc/*
 *.key
 *.crt
 
