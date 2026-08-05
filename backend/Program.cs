@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -19,7 +20,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Configure GitHub Options & Typed HttpClient Service (Solution 1 for K1.5)
+// Add MemoryCache for GitHub API Rate Limit protection (K1.6)
+builder.Services.AddMemoryCache();
+
+// Configure GitHub Options & Typed HttpClient Service (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
 
 builder.Services.AddHttpClient<IGitHubService, GitHubService>((sp, client) =>
@@ -62,30 +66,42 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     }
 });
 
-// [FAZ-1] K1.4 — Mock Branches Endpoint
-app.MapGet("/api/branches", (string? repo) =>
+// [FAZ-2] K1.6 — Live GitHub Branches Endpoint with 60s MemoryCache
+app.MapGet("/api/branches", async (string? repo, IGitHubService gitHubService, IMemoryCache cache, ILogger<Program> logger) =>
 {
-    var repoType = repo?.ToLowerInvariant();
+    var repoType = string.IsNullOrWhiteSpace(repo) ? "web" : repo.Trim().ToLowerInvariant();
+    var cacheKey = $"github_branches_{repoType}";
 
-    if (repoType == "server")
+    if (cache.TryGetValue(cacheKey, out IEnumerable<BranchDto>? cachedBranches) && cachedBranches != null)
     {
-        var serverBranches = new List<BranchDto>
-        {
-            new("main", true),
-            new("feat/K1-5-api", false),
-            new("fix/db-connection", false)
-        };
-        return Results.Ok(serverBranches);
+        logger.LogInformation("Returning branches for '{RepoType}' from MemoryCache.", repoType);
+        return Results.Ok(cachedBranches);
     }
 
-    // Default or 'web' repo branches
-    var webBranches = new List<BranchDto>
+    try
     {
-        new("main", true),
-        new("feat/K1-5-auth", false),
-        new("feat/ui-redesign", false)
-    };
-    return Results.Ok(webBranches);
+        var branches = await gitHubService.GetBranchesAsync(repoType);
+        
+        // Cache the result for 60 seconds to protect against GitHub Rate Limit
+        cache.Set(cacheKey, branches, TimeSpan.FromSeconds(60));
+        
+        return Results.Ok(branches);
+    }
+    catch (KeyNotFoundException ex)
+    {
+        logger.LogWarning(ex, "Repository not found for type: {RepoType}", repoType);
+        return Results.NotFound(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        logger.LogError(ex, "GitHub Authorization error for type: {RepoType}", repoType);
+        return Results.Problem(detail: ex.Message, statusCode: 502, title: "GitHub API Yetkilendirme Hatası");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error fetching live branches from GitHub for type: {RepoType}", repoType);
+        return Results.Problem(detail: "GitHub API servisiyle iletişim kurulurken bir hata oluştu: " + ex.Message, statusCode: 502, title: "GitHub Servis Hatası");
+    }
 });
 
 app.Run();
