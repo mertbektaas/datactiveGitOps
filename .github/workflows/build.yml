@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_web:
+        description: "Web uygulaması branch adı"
+        required: true
+        type: string
+      branch_server:
+        description: "Server uygulaması branch adı"
+        required: true
+        type: string
+      schema:
+        description: "DB schema adı"
+        required: true
+        type: string
+      tag:
+        description: "Build tag'i (Tag Formatı'na uygun)"
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inputs
+        run: |
+          echo "branch_web=${{ inputs.branch_web }}"
+          echo "branch_server=${{ inputs.branch_server }}"
+          echo "schema=${{ inputs.schema }}"
+          echo "tag=${{ inputs.tag }}"
+          sleep 5
