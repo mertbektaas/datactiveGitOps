@@ -22,17 +22,28 @@ runnerScaleSet:
   # Her job bitiminde pod silinir (ephemeral) — izolasyon
   podRetention: none
 
-# --- Runner pod şablonu ---
+# --- Container mode (Kaniko için kubernetes modu) ---
 containerMode:
   type: kubernetes
 
 template:
   spec:
-    # Build için yeterli kaynak (2 CPU, 4Gi)
     containers:
       - name: runner
         image: ghcr.io/actions/actions-runner:2.322.0
         command: ["/home/runner/run.sh"]
+        env:
+          - name: ACTIONS_RUNNER_CONTAINER_HOOKS
+            value: /home/runner/k8s/index.js
+          - name: ACTIONS_RUNNER_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            value: "true"
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
         resources:
           requests:
             cpu: "2"
@@ -44,14 +55,13 @@ template:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
           readOnlyRootFilesystem: false
-        env:
-          # GitHub'a bağlantı izni (GitHub API dışı egress)
-          - name: RUNNER_UPDATE_PLUGIN_ENABLED
-            value: "false"
-          # Harbor build sırasında erişim (K2.8'de doldurulur)
-          - name: REGISTRY
-            value: "harbor.datactive.net"
-
-# --- Pod dağıtım kuralları (production) ---
-podSecurityContext:
-  fsGroup: 1001
+    volumes:
+      - name: work
+        ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: "local-path"
+              resources:
+                requests:
+                  storage: 1Gi
