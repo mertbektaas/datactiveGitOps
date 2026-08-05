@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using backend.Data;
+using backend.Models;
 using backend.Options;
 using backend.Services;
 
@@ -22,6 +23,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Add MemoryCache for GitHub API Rate Limit protection (K1.6)
 builder.Services.AddMemoryCache();
+
+// Register Build Provider (Solution 1 for K1.7: MockBuildProvider)
+builder.Services.AddScoped<IBuildProvider, MockBuildProvider>();
 
 // Configure GitHub Options & Typed HttpClient Service (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
@@ -102,6 +106,21 @@ app.MapGet("/api/branches", async (string? repo, IGitHubService gitHubService, I
         logger.LogError(ex, "Error fetching live branches from GitHub for type: {RepoType}", repoType);
         return Results.Problem(detail: "GitHub API servisiyle iletişim kurulurken bir hata oluştu: " + ex.Message, statusCode: 502, title: "GitHub Servis Hatası");
     }
+});
+
+// [FAZ-2] K1.7 — Mock Build Dispatch Endpoint
+app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider) =>
+{
+    if (string.IsNullOrWhiteSpace(request.BranchWeb) ||
+        string.IsNullOrWhiteSpace(request.BranchServer) ||
+        string.IsNullOrWhiteSpace(request.Schema) ||
+        string.IsNullOrWhiteSpace(request.Tag))
+    {
+        return Results.BadRequest(new { error = "Tüm alanlar (branch_web, branch_server, schema, tag) zorunludur." });
+    }
+
+    var result = await buildProvider.DispatchBuildAsync(request);
+    return Results.Ok(result);
 });
 
 app.Run();
