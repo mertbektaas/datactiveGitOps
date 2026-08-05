@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using backend.Data;
+using backend.Options;
+using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +18,28 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+// Configure GitHub Options & Typed HttpClient Service (Solution 1 for K1.5)
+builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
+
+builder.Services.AddHttpClient<IGitHubService, GitHubService>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptions<GitHubOptions>>().Value;
+    
+    // Read GITHUB_TOKEN environment variable if appsettings token is empty
+    var token = !string.IsNullOrEmpty(options.Token) 
+        ? options.Token 
+        : Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
+    client.BaseAddress = new Uri("https://api.github.com/");
+    client.DefaultRequestHeaders.Add("User-Agent", "DatactiveGitOps-Backend");
+    client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+
+    if (!string.IsNullOrEmpty(token))
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    }
+});
 
 // Solution 2: ASP.NET Core Built-in HealthChecks Service
 builder.Services.AddHealthChecks();
@@ -36,7 +62,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     }
 });
 
-// [FAZ-1] K1.4 — Mock Branches Endpoint (Solution 1: Minimal API + DTO Record)
+// [FAZ-1] K1.4 — Mock Branches Endpoint
 app.MapGet("/api/branches", (string? repo) =>
 {
     var repoType = repo?.ToLowerInvariant();
