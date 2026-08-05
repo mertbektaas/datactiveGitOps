@@ -36,4 +36,33 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     }
 });
 
+// [FAZ-1] K1.4 — Mock Branches Endpoint (Solution 1: Minimal API + DTO Record)
+app.MapGet("/api/branches", (string? repo) =>
+{
+    var repoType = repo?.ToLowerInvariant();
+
+    if (repoType == "server")
+    {
+        var serverBranches = new List<BranchDto>
+        {
+            new("main", true),
+            new("feat/K1-5-api", false),
+            new("fix/db-connection", false)
+        };
+        return Results.Ok(serverBranches);
+    }
+
+    // Default or 'web' repo branches
+    var webBranches = new List<BranchDto>
+    {
+        new("main", true),
+        new("feat/K1-5-auth", false),
+        new("feat/ui-redesign", false)
+    };
+    return Results.Ok(webBranches);
+});
+
 app.Run();
+
+// DTO for Branch Response
+public record BranchDto(string Name, bool IsDefault);
