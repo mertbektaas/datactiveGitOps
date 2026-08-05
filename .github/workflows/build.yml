@@ -24,7 +24,7 @@ jobs:
   build:
     runs-on: arc-runner-set
     container:
-      image: k3d-datactive-registry:5000/datateam/datactive-build:latest
+      image: datactive-registry:5000/datateam/datactive-build:latest
       options: --privileged
     steps:
       - name: Checkout (local action için)
