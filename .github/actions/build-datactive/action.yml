@@ -1,0 +1,85 @@
+name: build-datactive
+description: |
+  DatActive web + server image build (Kaniko, daemon'sız).
+  İki repoyu checkout eder, WORKDIR altında birleştirir ve
+  datactive.core.server/configurations/Dockerfile ile image üretir.
+
+inputs:
+  branch_web:
+    description: "Web uygulaması branch adı"
+    required: true
+  branch_server:
+    description: "Server uygulaması branch adı"
+    required: true
+  tag:
+    description: "Build tag'i (CONTRACT §1)"
+    required: true
+  web_repo:
+    description: "Web repo (owner/repo)"
+    required: false
+    default: "mertbektaas/datateam-web"
+  server_repo:
+    description: "Server repo (owner/repo)"
+    required: false
+    default: "mertbektaas/datateam-core.server"
+  image_name:
+    description: "Hedef image adı (registry/owner/name)"
+    required: false
+    default: "harbor.datactive.net/datateam/datactive.web"
+  token:
+    description: "GitHub PAT — private repo checkout için (C2.1)"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Workdir hazırla
+      shell: bash
+      run: |
+        WORKDIR=$(mktemp -d /tmp/datactive-build-XXXXXX)
+        echo "workdir=$WORKDIR" >> "$GITHUB_ENV"
+        echo "WORKDIR=$WORKDIR"
+
+    - name: Web repo checkout
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.web_repo }}
+        ref: ${{ inputs.branch_web }}
+        path: ${{ env.workdir }}/datactive.web
+        token: ${{ inputs.token }}
+
+    - name: Server repo checkout
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.server_repo }}
+        ref: ${{ inputs.branch_server }}
+        path: ${{ env.workdir }}/datactive.core.server
+        token: ${{ inputs.token }}
+
+    - name: Kaniko binary indir
+      shell: bash
+      run: |
+        curl -sSLo /tmp/kaniko.tar.gz \
+          https://github.com/GoogleContainerTools/kaniko/releases/download/v1.23.2/kaniko-executor-linux-amd64.tar.gz
+        tar -xzf /tmp/kaniko.tar.gz -C /tmp
+        chmod +x /tmp/kaniko-executor
+        /tmp/kaniko-executor --version
+
+    - name: Image build (Kaniko)
+      shell: bash
+      run: |
+        /tmp/kaniko-executor \
+          --context "${{ env.workdir }}" \
+          --dockerfile "${{ env.workdir }}/datactive.core.server/configurations/Dockerfile" \
+          --destination "${{ inputs.image_name }}:${{ inputs.tag }}" \
+          --cache=true \
+          --cache-repo "harbor.datactive.net/datateam/cache" \
+          --force
+
+    - name: Workdir temizle
+      shell: bash
+      if: always()
+      run: |
+        rm -rf "${{ env.workdir }}" /tmp/kaniko.tar.gz
+        echo "Temp workspace temizlendi."

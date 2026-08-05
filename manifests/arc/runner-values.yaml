@@ -22,36 +22,52 @@ runnerScaleSet:
   # Her job bitiminde pod silinir (ephemeral) — izolasyon
   podRetention: none
 
-# --- Runner pod şablonu ---
+# --- Container mode (Kaniko için kubernetes modu) ---
 containerMode:
   type: kubernetes
 
 template:
   spec:
-    # Build için yeterli kaynak (2 CPU, 4Gi)
     containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:2.322.0
+        image: ghcr.io/actions/actions-runner:2.336.0
         command: ["/home/runner/run.sh"]
-        resources:
-          requests:
-            cpu: "2"
-            memory: 4Gi
-          limits:
-            cpu: "4"
-            memory: 8Gi
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          readOnlyRootFilesystem: false
         env:
-          # GitHub'a bağlantı izni (GitHub API dışı egress)
-          - name: RUNNER_UPDATE_PLUGIN_ENABLED
+          - name: ACTIONS_RUNNER_CONTAINER_HOOKS
+            value: /home/runner/k8s/index.js
+          - name: ACTIONS_RUNNER_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
+            # Test ortamı: job'lar doğrudan runner container'ında koşar.
+            # Production (kubernetes mode izolasyonu) için workflow'lara
+            # `container:` bloğu eklenip bu değer "true" yapılır.
             value: "false"
-          # Harbor build sırasında erişim (K2.8'de doldurulur)
-          - name: REGISTRY
-            value: "harbor.datactive.net"
-
-# --- Pod dağıtım kuralları (production) ---
-podSecurityContext:
-  fsGroup: 1001
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+        resources:
+          # Test ortamı (k3d, node başına ~4GB RAM)
+          # Production'da: requests 2CPU/4Gi, limits 4CPU/8Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+        securityContext:
+          runAsUser: 1001
+          runAsGroup: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+    volumes:
+      - name: work
+        ephemeral:
+          volumeClaimTemplate:
+            spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: "local-path"
+              resources:
+                requests:
+                  storage: 1Gi
