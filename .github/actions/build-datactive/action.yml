@@ -43,20 +43,20 @@ runs:
         echo "WORKDIR=$WORKDIR"
 
     - name: Web repo checkout
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.web_repo }}
-        ref: ${{ inputs.branch_web }}
-        path: ${{ env.workdir }}/datactive.web
-        token: ${{ inputs.token }}
+      shell: bash
+      env:
+        REPO_URL: "https://x-access-token:${{ inputs.token }}@github.com/${{ inputs.web_repo }}.git"
+      run: |
+        git clone --depth 1 --branch "${{ inputs.branch_web }}" \
+          "$REPO_URL" "${{ env.workdir }}/datactive.web"
 
     - name: Server repo checkout
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.server_repo }}
-        ref: ${{ inputs.branch_server }}
-        path: ${{ env.workdir }}/datactive.core.server
-        token: ${{ inputs.token }}
+      shell: bash
+      env:
+        REPO_URL: "https://x-access-token:${{ inputs.token }}@github.com/${{ inputs.server_repo }}.git"
+      run: |
+        git clone --depth 1 --branch "${{ inputs.branch_server }}" \
+          "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
     - name: Kaniko binary indir
       shell: bash
