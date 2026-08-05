@@ -37,7 +37,8 @@ runs:
     - name: Workdir hazırla
       shell: bash
       run: |
-        WORKDIR=$(mktemp -d /tmp/datactive-build-XXXXXX)
+        WORKDIR="${{ github.workspace }}/datactive-build"
+        mkdir -p "$WORKDIR"
         echo "workdir=$WORKDIR" >> "$GITHUB_ENV"
         echo "WORKDIR=$WORKDIR"
 
