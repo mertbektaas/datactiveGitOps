@@ -40,10 +40,9 @@ template:
               fieldRef:
                 fieldPath: metadata.name
           - name: ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER
-            # Test ortamı: job'lar doğrudan runner container'ında koşar.
-            # Production (kubernetes mode izolasyonu) için workflow'lara
-            # `container:` bloğu eklenip bu değer "true" yapılır.
-            value: "false"
+            # Job'lar izole container'da koşar (kubernetes mode izolasyonu).
+            # Workflow'larda container: bloğu tanımlıdır (build.yml, runner-test.yml).
+            value: "true"
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work

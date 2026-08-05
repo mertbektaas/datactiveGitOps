@@ -12,6 +12,9 @@ on:
 jobs:
   verify:
     runs-on: arc-runner-set
+    container:
+      image: moby/buildkit:latest
+      options: --privileged
     steps:
       - name: Runner Bilgisi
         run: |

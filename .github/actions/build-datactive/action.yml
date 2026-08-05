@@ -1,6 +1,7 @@
 name: build-datactive
 description: |
-  DatActive web + server image build (Kaniko, daemon'sız).
+  DatActive web + server image build (Buildkit, daemon'sız).
+  Job container: moby/buildkit (buildkitd + buildctl hazır içinde).
   İki repoyu checkout eder, WORKDIR altında birleştirir ve
   datactive.core.server/configurations/Dockerfile ile image üretir.
 
@@ -58,29 +59,31 @@ runs:
         git clone --depth 1 --branch "${{ inputs.branch_server }}" \
           "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
-    - name: Kaniko binary indir
+    - name: Buildkitd başlat
       shell: bash
       run: |
-        curl -sSLo /tmp/kaniko.tar.gz \
-          https://github.com/GoogleContainerTools/kaniko/releases/download/v1.23.2/kaniko-executor-linux-amd64.tar.gz
-        tar -xzf /tmp/kaniko.tar.gz -C /tmp
-        chmod +x /tmp/kaniko-executor
-        /tmp/kaniko-executor --version
+        nohup buildkitd > /tmp/buildkitd.log 2>&1 &
+        for i in $(seq 1 30); do
+          if buildctl debug workers >/dev/null 2>&1; then
+            echo "buildkitd hazır"
+            break
+          fi
+          sleep 1
+        done
 
-    - name: Image build (Kaniko)
+    - name: Image build (buildctl)
       shell: bash
       run: |
-        /tmp/kaniko-executor \
-          --context "${{ env.workdir }}" \
-          --dockerfile "${{ env.workdir }}/datactive.core.server/configurations/Dockerfile" \
-          --destination "${{ inputs.image_name }}:${{ inputs.tag }}" \
-          --cache=true \
-          --cache-repo "harbor.datactive.net/datateam/cache" \
-          --force
+        buildctl build \
+          --frontend dockerfile.v0 \
+          --local context="${{ env.workdir }}" \
+          --local dockerfile="${{ env.workdir }}/datactive.core.server/configurations" \
+          --output type=image,name="${{ inputs.image_name }}:${{ inputs.tag }}",push=true
 
-    - name: Workdir temizle
+    - name: Workdir temizle + buildkitd durdur
       shell: bash
       if: always()
       run: |
-        rm -rf "${{ env.workdir }}" /tmp/kaniko.tar.gz
+        pkill buildkitd 2>/dev/null || true
+        rm -rf "${{ env.workdir }}"
         echo "Temp workspace temizlendi."
