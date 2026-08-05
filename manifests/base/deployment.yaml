@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datactive-web
+  labels:
+    app: datactive-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datactive-web
+  template:
+    metadata:
+      labels:
+        app: datactive-web
+    spec:
+      imagePullSecrets:
+        - name: regcred
+
+      volumes:
+        - name: mlm
+          hostPath:
+            path: /home/admin/MachineLearningModels
+            type: DirectoryOrCreate
+        - name: dumps
+          hostPath:
+            path: /home/admin/datactive-dumps
+            type: DirectoryOrCreate
+
+      containers:
+        - name: app
+          image: harbor.datactive.net/datateam/datactive.web:placeholder
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            - name: IsCalculateKYCScoreForAllCustomers
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: IsCalculateKYCScoreForAllCustomers
+            - name: DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: datactive-secret
+                  key: DefaultConnection
+            - name: DQLSchema
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: DQLSchema
+            - name: ConnectionStrings__DBType
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: ConnectionStrings__DBType
+            - name: IsCacheEnabledForInitialDataForTest
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: IsCacheEnabledForInitialDataForTest
+            - name: CustomerMetadataSchema
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: CustomerMetadataSchema
+            - name: ORACLEDataSchema
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: ORACLEDataSchema
+            - name: FeatureFlags__AMLFeatures
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: FeatureFlags__AMLFeatures
+            - name: FeatureFlags__FraudFeatures
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: FeatureFlags__FraudFeatures
+            - name: LoggerLogType
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: LoggerLogType
+            - name: ConnectionStrings__ClientUrl
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: ConnectionStrings__ClientUrl
+            - name: Constants__ReduceFalsePositiveModelFileName
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: Constants__ReduceFalsePositiveModelFileName
+            - name: Constants__ReduceFalsePositiveModelFolderPath
+              valueFrom:
+                configMapKeyRef:
+                  name: datactive-config
+                  key: Constants__ReduceFalsePositiveModelFolderPath
+
+            - name: DOTNET_gcServer
+              value: "1"
+            - name: DOTNET_GCDynamicAdaptationMode
+              value: "1"
+            - name: DOTNET_GCConserveMemory
+              value: "5"
+            - name: DOTNET_GCHighMemPercent
+              value: "5A"
+
+            - name: DOTNET_DbgEnableMiniDump
+              value: "1"
+            - name: DOTNET_DbgMiniDumpType
+              value: "4"
+            - name: DOTNET_DbgMiniDumpName
+              value: "/dumps/coredump.%e.%p.%t"
+            - name: DOTNET_EnableCrashReport
+              value: "1"
+            - name: DOTNET_CreateDumpDiagnostics
+              value: "1"
+
+            - name: DOTNET_SHUTDOWNTIMEOUTSECONDS
+              value: "30"
+
+          volumeMounts:
+            - name: mlm
+              mountPath: /app/MLM
+            - name: dumps
+              mountPath: /dumps
+
+          readinessProbe:
+            failureThreshold: 30
+            periodSeconds: 10
+            httpGet:
+              path: /public/healthz
+              port: 8080
+              scheme: HTTP
+
+          livenessProbe:
+            failureThreshold: 30
+            periodSeconds: 10
+            httpGet:
+              path: /public/healthz
+              port: 8080
+              scheme: HTTP
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"

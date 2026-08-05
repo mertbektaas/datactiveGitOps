@@ -1,0 +1,39 @@
+name: ARC Runner Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_payload:
+        description: "Test girdisi (opsiyonel)"
+        required: false
+        type: string
+        default: "arc-verify"
+
+jobs:
+  verify:
+    runs-on: arc-runner-set
+    steps:
+      - name: Runner Bilgisi
+        run: |
+          echo "Runner host: $(hostname)"
+          echo "Runner pod: $HOSTNAME"
+          echo "Kernel: $(uname -r)"
+
+      - name: Input Kontrolü
+        run: |
+          echo "test_payload=${{ inputs.test_payload }}"
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner Arch: $RUNNER_ARCH"
+
+      - name: Cluster Erişimi Kontrolü
+        run: |
+          if command -v kubectl >/dev/null 2>&1; then
+            echo "kubectl mevcut: $(kubectl version --client -o yaml | head -2)"
+          else
+            echo "kubectl yok (beklenen: K2.8'de eklenecek)"
+          fi
+
+      - name: Ağ Erişimi Kontrolü
+        run: |
+          curl -sS -o /dev/null -w "GitHub API: %{http_code}\n" https://api.github.com || echo "GitHub API erişilemedi"
+          curl -sS -o /dev/null -w "Harbor: %{http_code}\n" https://harbor.datactive.net/v2/ || echo "Harbor erişilemedi"
