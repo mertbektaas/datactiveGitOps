@@ -7,7 +7,7 @@ resources:
 
 images:
   - name: harbor.datactive.net/datateam/datactive.web
-    newTag: "BUILD-20260806-144216"
+    newTag: "BUILD-20260806-145034"
 
 configMapGenerator:
   - name: datactive-config
