@@ -199,6 +199,13 @@ app.MapPost("/api/argocd/sync/{appName}", async (string appName, IArgoCdService 
     return Results.Ok(result);
 });
 
+// [FAZ-6] K2.15 — ArgoCD Application Status (sync + health) Endpoint
+app.MapGet("/api/argocd/status/{appName}", async (string appName, IArgoCdService argoCdService) =>
+{
+    var result = await argoCdService.GetApplicationStatusAsync(appName);
+    return Results.Ok(result);
+});
+
 // [FAZ-3] K1.8 & K1.11 — Real/Mock Build Dispatch Endpoint with Auto-Tag Generation Support
 app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider, ITagGeneratorService tagGenerator, ILogger<Program> logger) =>
 {

@@ -99,4 +99,46 @@ public class ArgoCdService : IArgoCdService
             return new ArgoCdSyncResult(true, appName, "synced", "ArgoCD Sync signal recorded.");
         }
     }
+
+    public async Task<ArgoCdStatusResult> GetApplicationStatusAsync(string appName)
+    {
+        _logger.LogInformation("Reading ArgoCD status for Application '{AppName}'", appName);
+
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/v1/applications/{appName}?refresh=normal");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("ArgoCD status read returned {StatusCode} for '{AppName}': {Error}",
+                    response.StatusCode, appName, errContent);
+                return new ArgoCdStatusResult(false, appName, "unknown", "unknown",
+                    $"ArgoCD status okunamadı ({response.StatusCode})");
+            }
+
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = doc.RootElement;
+
+            var syncStatus = root.TryGetProperty("status", out var status)
+                && status.TryGetProperty("sync", out var sync)
+                && sync.TryGetProperty("status", out var syncStatusEl)
+                ? syncStatusEl.GetString() ?? "unknown"
+                : "unknown";
+
+            var healthStatus = root.TryGetProperty("status", out status)
+                && status.TryGetProperty("health", out var health)
+                && health.TryGetProperty("status", out var healthStatusEl)
+                ? healthStatusEl.GetString() ?? "unknown"
+                : "unknown";
+
+            _logger.LogInformation("ArgoCD '{AppName}' — sync: {Sync}, health: {Health}", appName, syncStatus, healthStatus);
+            return new ArgoCdStatusResult(true, appName, syncStatus, healthStatus, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error reading ArgoCD status for App '{AppName}'", appName);
+            return new ArgoCdStatusResult(false, appName, "unknown", "unknown", "ArgoCD bağlantı hatası");
+        }
+    }
 }
