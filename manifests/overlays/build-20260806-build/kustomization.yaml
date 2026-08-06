@@ -6,7 +6,7 @@ resources:
   - "../../base"
 
 images:
-  - name: harbor.datactive.net/datateam/datactive.web
+  - name: datactive-registry:5000/datateam/datactive.web
     newTag: "BUILD-20260806-142136"
 
 configMapGenerator:
