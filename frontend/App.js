@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import axios from 'axios';
+import BranchSelector from './src/components/BranchSelector';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -21,6 +22,13 @@ export default function App() {
   const [healthStatus, setHealthStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [lastCheck, setLastCheck] = useState(null);
+
+  const [selectedPair, setSelectedPair] = useState({
+    branchWeb: '',
+    branchServer: '',
+    ticket: null,
+    isAutoMatched: false
+  });
 
   const fetchHealthCheck = async () => {
     setLoading(true);
@@ -58,7 +66,12 @@ export default function App() {
           <Text style={styles.subtitleText}>Ölçeklenebilir Kubernetes Dağıtım & Boru Hattı Portalı</Text>
         </View>
 
-        {/* Main Card Container */}
+        {/* Branch Selector Component (K1.13) */}
+        <View style={styles.mainWrapper}>
+          <BranchSelector onSelectPair={setSelectedPair} />
+        </View>
+
+        {/* Backend Status Card */}
         <View style={[styles.card, isMobile && styles.cardMobile]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Backend API Bağlantı Durumu</Text>
@@ -113,20 +126,6 @@ export default function App() {
           )}
         </View>
 
-        {/* Responsive Grid Info */}
-        <View style={[styles.grid, isMobile && styles.gridMobile]}>
-          <View style={styles.gridCard}>
-            <Text style={styles.gridIcon}>🌐</Text>
-            <Text style={styles.gridTitle}>Cross-Platform</Text>
-            <Text style={styles.gridDesc}>Tek kod tabanı ile Web tarayıcıları ve Mobil cihazlar için %100 responsive tasarım.</Text>
-          </View>
-          <View style={styles.gridCard}>
-            <Text style={styles.gridIcon}>⚡</Text>
-            <Text style={styles.gridTitle}>Gerçek Zamanlı</Text>
-            <Text style={styles.gridDesc}>GitHub Actions ve ArgoCD boru hattı durumlarını canlı takip imkanı.</Text>
-          </View>
-        </View>
-
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Datactive GitOps Engine v1.0.0 — K1 (Web/Backend Team)</Text>
@@ -147,7 +146,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginVertical: 30,
+    marginVertical: 24,
   },
   logoText: {
     fontSize: 32,
@@ -161,22 +160,22 @@ const styles = StyleSheet.create({
   subtitleText: {
     fontSize: 14,
     color: '#94a3b8',
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
+  },
+  mainWrapper: {
+    width: '100%',
+    maxWidth: 750,
   },
   card: {
     width: '100%',
-    maxWidth: 700,
+    maxWidth: 750,
     backgroundColor: '#1e293b',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   cardMobile: {
     padding: 16,
@@ -185,45 +184,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#f8fafc',
   },
   refreshButton: {
     backgroundColor: '#3b82f6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   refreshButtonText: {
     color: '#ffffff',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#94a3b8',
   },
   urlValue: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#38bdf8',
     fontFamily: 'monospace',
   },
   badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
   },
   badgeSuccess: {
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#ffffff',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
   },
   loadingText: {
     color: '#94a3b8',
@@ -245,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
     borderRadius: 8,
     padding: 12,
-    marginTop: 16,
+    marginTop: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#3b82f6',
   },
@@ -265,41 +264,8 @@ const styles = StyleSheet.create({
     color: '#fca5a5',
     fontSize: 13,
   },
-  grid: {
-    flexDirection: 'row',
-    width: '100%',
-    maxWidth: 700,
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  gridMobile: {
-    flexDirection: 'column',
-  },
-  gridCard: {
-    flex: 1,
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  gridIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  gridTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f8fafc',
-    marginBottom: 6,
-  },
-  gridDesc: {
-    fontSize: 13,
-    color: '#94a3b8',
-    lineHeight: 18,
-  },
   footer: {
-    marginTop: 40,
+    marginTop: 30,
     marginBottom: 20,
   },
   footerText: {
