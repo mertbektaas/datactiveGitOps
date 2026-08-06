@@ -51,9 +51,8 @@ public class ArgoCdService : IArgoCdService
 
             using var createRequest = new HttpRequestMessage(HttpMethod.Post, "api/v1/applications")
             {
-                Content = JsonContent.Create(createPayload)
+                Content = JsonContent.Create(createPayload, mediaType: new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"))
             };
-            createRequest.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
             var createResponse = await _httpClient.SendAsync(createRequest);
 
@@ -90,9 +89,8 @@ public class ArgoCdService : IArgoCdService
 
             using var syncRequest = new HttpRequestMessage(HttpMethod.Post, $"api/v1/applications/{appName}/sync")
             {
-                Content = JsonContent.Create(syncPayload)
+                Content = JsonContent.Create(syncPayload, mediaType: new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"))
             };
-            syncRequest.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 
             var response = await _httpClient.SendAsync(syncRequest);
 
