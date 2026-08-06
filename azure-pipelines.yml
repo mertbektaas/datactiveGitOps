@@ -1,0 +1,76 @@
+# Azure DevOps Pipeline — DatActive Build (K2.17)
+# GitHub Actions (build.yml) eşdeğeri — aynı build mantığı, Azure'da.
+# Manual trigger (workflow_dispatch eşdeğeri): Run Pipeline butonu / API.
+
+trigger: none
+pr: none
+
+# Manual çalıştırma parametreleri (GH workflow_dispatch inputs eşdeğeri)
+parameters:
+  - name: branch_web
+    displayName: "Web branch"
+    type: string
+    default: "main"
+  - name: branch_server
+    displayName: "Server branch"
+    type: string
+    default: "main"
+  - name: schema
+    displayName: "DB Schema"
+    type: string
+    default: "schema_test"
+  - name: tag
+    displayName: "Build tag (CONTRACT §1)"
+    type: string
+    default: ""
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  # Registry adresi (production: harbor.datactive.net — K2.10)
+  registry: "datactive-registry:5000"
+  imageName: "datateam/datactive.web"
+  workdir: "$(System.DefaultWorkingDirectory)/datactive-build"
+  buildkitHost: "tcp://buildkitd.arc-runners.svc:1234"
+
+steps:
+  - checkout: self
+
+  # --- Buildkit binary kurulumu (job container'da hazır olmadığı için) ---
+  - script: |
+      curl -sSLo /tmp/buildkit.tar.gz \
+        "https://github.com/moby/buildkit/releases/download/v0.32.2/buildkit-v0.32.2.linux-amd64.tar.gz"
+      tar -xzf /tmp/buildkit.tar.gz -C /usr/local/bin --strip-components=1
+    displayName: "Install Buildkit"
+
+  # --- Web repo checkout (GH action'daki git clone eşdeğeri) ---
+  - script: |
+      mkdir -p "$(workdir)"
+      git clone --depth 1 --branch "$(branch_web)" \
+        "https://x-access-token:$(PAT_TOKEN)@github.com/mertbektaas/datateam-web.git" \
+        "$(workdir)/datactive.web"
+    displayName: "Checkout web"
+
+  # --- Server repo checkout ---
+  - script: |
+      git clone --depth 1 --branch "$(branch_server)" \
+        "https://x-access-token:$(PAT_TOKEN)@github.com/mertbektaas/datateam-core.server.git" \
+        "$(workdir)/datactive.core.server"
+    displayName: "Checkout server"
+
+  # --- Image build (K2.8 buildctl komutu eşdeğeri) ---
+  - script: |
+      export BUILDKIT_HOST="$(buildkitHost)"
+      buildctl build \
+        --frontend dockerfile.v0 \
+        --local context="$(workdir)" \
+        --local dockerfile="$(workdir)/datactive.core.server/configurations" \
+        --output type=image,name="$(registry)/$(imageName):$(tag)",push=true
+    displayName: "Build image (buildctl)"
+
+  # --- Temizlik (K2.9 dispose eşdeğeri) ---
+  - script: |
+      rm -rf "$(workdir)"
+    displayName: "Cleanup workspace"
+    condition: always()
