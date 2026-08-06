@@ -180,7 +180,33 @@ github_pat:
 
 ---
 
-## 8. ArgoCD API Erişim Bilgisi
+## 8. Secret Yönetimi (DB Bağlantısı)
+
+**Durum: ✅ KARAR VERİLDİ**
+
+```yaml
+db_secret:
+  decision: "Tek DB — tüm build'ler aynı DefaultConnection kullanır"
+  location: "base/datactive-secret.yaml (tek kopya)"
+  isolation: "Schema seviyesinde sağlanır (ConfigMap per-overlay)"
+  sealed: "SealedSecret — şifreli hali git'te durur (K2.12)"
+  rationale: |
+    - Boss'un altyapısı tek PostgreSQL kullanır
+    - Her build farklı schema'da çalışır (veri izolasyonu zaten var)
+    - Secret tek yerde → tek şifre yönetimi
+    - Schema env'leri overlay'de (per-build), connection string base'de
+```
+
+**Açıklama:**
+- Her build kendi namespace'inde çalışır ama **aynı DB'ye bağlanır**
+- İzolasyon **schema** ile sağlanır (her build farklı schema → farklı veri)
+- `DefaultConnection` (secret) → **base'de** tek kopya
+- `DQLSchema`, `ORACLEDataSchema` vb. (config) → **overlay'de** build'e özel
+- SealedSecret, git'te şifreli durur; controller çözer (K2.3/K2.12)
+
+---
+
+## 9. ArgoCD API Erişim Bilgisi
 
 **Durum: ⚠️ FAZ 5'TE DOLDURULACAK**
 
