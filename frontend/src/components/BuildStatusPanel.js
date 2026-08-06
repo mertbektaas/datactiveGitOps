@@ -95,6 +95,14 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
     }
   }, []);
 
+  // Build'ler değişince tüm namespace'lerin ArgoCD durumunu toplu çek (K2.15)
+  useEffect(() => {
+    const namespaces = (builds || [])
+      .map((b) => b.namespaceName || b.namespace)
+      .filter(Boolean);
+    namespaces.forEach((ns) => fetchArgoStatus(ns));
+  }, [builds, latestBuildTrigger, fetchArgoStatus]);
+
   const handleReSyncArgoCd = async (ns) => {
     const appName = `app-${ns || 'build-test'}`;
     setSyncingMap((prev) => ({ ...prev, [appName]: true }));
@@ -195,10 +203,6 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
             const appName = `app-${ns}`;
             const isSyncing = syncingMap[appName];
             const argo = argoStatusMap[appName];
-
-            useEffect(() => {
-              fetchArgoStatus(ns);
-            }, [ns, latestBuildTrigger]);
 
             return (
               <View key={item.buildId} style={styles.buildCard}>
