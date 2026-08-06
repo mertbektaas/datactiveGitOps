@@ -248,6 +248,26 @@ argocd_api:
 
 ---
 
+## 10. Auth Kararı (Panel Erişimi)
+
+**Durum: ✅ KARAR VERİLDİ**
+
+```yaml
+auth_decision:
+  panel_access: "internal (şirket ağı / VPN)"
+  login_required: "EVET — 2FA ile login (K1.19 uygulayacak)"
+  external_access: "YOK — webhook yok (C0.5 kararı, polling)"
+  api_auth: "ArgoCD token zaten korumalı (K2.14); GitHub PAT zaten korumalı (C2.1)"
+  rationale: |
+    - Deploy tetikleme production'ı değiştirir → yetkisiz kullanım riskli
+    - 2FA: şifre çalınsa bile ikinci faktör korur
+    - Dışa açıklık yok (polling, webhook yok)
+```
+
+**Açıklama:** Panel şirket içi kullanılır (dışa açık değil). Giriş **2FA ile login** ile korunur — deploy tetikleme production'ı değiştirdiği için yalnızca doğrulanmış ekip üyeleri erişebilir (K1.19).
+
+---
+
 ## Değişiklik Kuralları
 
 - Bu dokümandaki değişiklikler PR ile yapılır.
