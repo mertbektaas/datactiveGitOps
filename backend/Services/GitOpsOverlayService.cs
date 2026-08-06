@@ -40,16 +40,16 @@ public class GitOpsOverlayService : IGitOpsOverlayService
                 .AppendLine("  - \"../../base\"")
                 .AppendLine()
                 .AppendLine("images:")
-                .AppendLine("  - name: harbor.datactive.net/datateam/datateam-web")
-                .AppendLine($"    newTag: \"{tag}\"")
-                .AppendLine("  - name: harbor.datactive.net/datateam/datateam-server")
+                .AppendLine("  - name: harbor.datactive.net/datateam/datactive.web")
                 .AppendLine($"    newTag: \"{tag}\"")
                 .AppendLine()
                 .AppendLine("configMapGenerator:")
                 .AppendLine("  - name: datactive-config")
                 .AppendLine("    behavior: merge")
                 .AppendLine("    literals:")
-                .AppendLine($"      - DB_SCHEMA={schema}")
+                .AppendLine($"      - DQLSchema={schema}")
+                .AppendLine($"      - CustomerMetadataSchema={schema}.")
+                .AppendLine($"      - ORACLEDataSchema={schema}.")
                 .ToString();
 
             await File.WriteAllTextAsync(kustomizationYamlPath, kustomizationContent);
