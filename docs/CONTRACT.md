@@ -33,10 +33,10 @@ namespace_format:
   rules:
     - yyyyMMdd: Build tarihi
     - ticket: Issue/task numarası
-    - Ömür: Deploy tamamlandıktan sonra silinir (Faz 6'da tanımlanır)
+    - Ömür: KALICI — tüm build namespace'leri tutulur (C6.1 kararı)
 ```
 
-**Açıklama:** Her build izole bir ortamda çalışır. Namespace ismi tarih ve ticket'tan oluşur.
+**Açıklama:** Her build izole bir ortamda çalışır. Namespace ismi tarih ve ticket'tan oluşur. **Namespace'ler silinmez — tüm build geçmişi kalıcı tutulur** (karar: C6.1, 06.08.2026).
 
 ---
 
