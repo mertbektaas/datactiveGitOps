@@ -6,3 +6,12 @@ resources:
 images:
   - name: harbor.datactive.net/datateam/datactive.web
     newTag: test-001
+# Test ortamı: image'ı test registry'den çek (production'da bu patch yok)
+patches:
+  - target:
+      kind: Deployment
+      name: datactive-web
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: datactive-registry:5000/datateam/datactive.web:C3-1-20260806-151600
