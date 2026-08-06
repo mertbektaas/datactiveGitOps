@@ -19,6 +19,20 @@ export const getBranches = async (repoType = 'web') => {
   }
 };
 
+export const getSchemas = async () => {
+  try {
+    const response = await apiClient.get('/api/schemas');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching schemas:', error);
+    return [
+      { id: 'schema_dev', name: 'schema_dev (Geliştirme / Test)' },
+      { id: 'schema_k1_5', name: 'schema_k1_5 (K1-5 Bilet Şeması)' },
+      { id: 'datactive_mix_tenant', name: 'datactive_mix_tenant (Tenant Izole)' }
+    ];
+  }
+};
+
 export const generateTag = async (branchWeb, branchServer) => {
   try {
     const response = await apiClient.get(`/api/tags/generate?branchWeb=${encodeURIComponent(branchWeb)}&branchServer=${encodeURIComponent(branchServer || '')}`);

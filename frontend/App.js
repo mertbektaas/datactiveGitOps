@@ -12,6 +12,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import axios from 'axios';
 import BranchSelector from './src/components/BranchSelector';
+import DeployForm from './src/components/DeployForm';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -29,6 +30,8 @@ export default function App() {
     ticket: null,
     isAutoMatched: false
   });
+
+  const [latestBuild, setLatestBuild] = useState(null);
 
   const fetchHealthCheck = async () => {
     setLoading(true);
@@ -66,9 +69,13 @@ export default function App() {
           <Text style={styles.subtitleText}>Ölçeklenebilir Kubernetes Dağıtım & Boru Hattı Portalı</Text>
         </View>
 
-        {/* Branch Selector Component (K1.13) */}
+        {/* Main Content Area */}
         <View style={styles.mainWrapper}>
+          {/* Branch Selector Component (K1.13) */}
           <BranchSelector onSelectPair={setSelectedPair} />
+
+          {/* Deploy Form Component (K1.14) */}
+          <DeployForm selectedPair={selectedPair} onBuildSuccess={setLatestBuild} />
         </View>
 
         {/* Backend Status Card */}
@@ -207,7 +214,7 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify.content: 'space-between',
     alignItems: 'center',
     marginVertical: 8,
   },

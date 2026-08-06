@@ -156,6 +156,19 @@ app.MapGet("/api/tags/generate", (string? branchWeb, string? branchServer, ITagG
     return Results.Ok(new { tag = generatedTag });
 });
 
+// [FAZ-5] K1.14 — Available DB Schemas Endpoint
+app.MapGet("/api/schemas", () =>
+{
+    var schemas = new[]
+    {
+        new { id = "schema_dev", name = "schema_dev (Geliştirme / Test)" },
+        new { id = "schema_k1_5", name = "schema_k1_5 (K1-5 Bilet Şeması)" },
+        new { id = "datactive_mix_tenant", name = "datactive_mix_tenant (Tenant Izole)" },
+        new { id = "schema_staging", name = "schema_staging (Pre-Prod Staging)" }
+    };
+    return Results.Ok(schemas);
+});
+
 // [FAZ-4] K1.10 — Generate & Commit GitOps Overlay Endpoint
 app.MapPost("/api/gitops/overlay", async (string targetNamespace, string tag, string schema, string ticket, IGitOpsOverlayService overlayService) =>
 {
