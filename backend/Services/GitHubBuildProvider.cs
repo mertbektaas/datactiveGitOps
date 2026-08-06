@@ -38,7 +38,7 @@ public class GitHubBuildProvider : IBuildProvider
 
         var owner = string.IsNullOrEmpty(_options.Owner) ? "mertbektaas" : _options.Owner;
         var repo = "datactiveGitOps";
-        var workflowId = "main.yaml";
+        var workflowId = "build.yml";
         var url = $"repos/{owner}/{repo}/actions/workflows/{workflowId}/dispatches";
 
         var payload = new
