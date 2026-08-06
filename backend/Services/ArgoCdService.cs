@@ -49,7 +49,13 @@ public class ArgoCdService : IArgoCdService
                 }
             };
 
-            var createResponse = await _httpClient.PostAsJsonAsync("api/v1/applications", createPayload);
+            using var createRequest = new HttpRequestMessage(HttpMethod.Post, "api/v1/applications")
+            {
+                Content = JsonContent.Create(createPayload)
+            };
+            createRequest.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            var createResponse = await _httpClient.SendAsync(createRequest);
 
             if (createResponse.StatusCode == HttpStatusCode.Conflict)
             {
@@ -82,7 +88,13 @@ public class ArgoCdService : IArgoCdService
                 dryRun = false
             };
 
-            var response = await _httpClient.PostAsJsonAsync($"api/v1/applications/{appName}/sync", syncPayload);
+            using var syncRequest = new HttpRequestMessage(HttpMethod.Post, $"api/v1/applications/{appName}/sync")
+            {
+                Content = JsonContent.Create(syncPayload)
+            };
+            syncRequest.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            var response = await _httpClient.SendAsync(syncRequest);
 
             if (!response.IsSuccessStatusCode)
             {

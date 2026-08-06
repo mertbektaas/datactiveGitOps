@@ -32,6 +32,8 @@ builder.Services.AddSingleton<ITagGeneratorService, TagGeneratorService>();
 builder.Services.AddScoped<IGitOpsOverlayService, GitOpsOverlayService>();
 
 // Register ArgoCD Service (Solution 1 for K1.16)
+// Test ortamı: ARGOCD_INSECURE=1 ile TLS doğrulaması kapatılır (self-signed/redirect)
+var allowInsecureArgo = Environment.GetEnvironmentVariable("ARGOCD_INSECURE") == "1";
 builder.Services.AddHttpClient<IArgoCdService, ArgoCdService>((sp, client) =>
 {
     // ARGOCD_BASE_URL env ile override edilebilir (test: http://localhost:18080)
@@ -46,7 +48,10 @@ builder.Services.AddHttpClient<IArgoCdService, ArgoCdService>((sp, client) =>
     {
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", argocdToken);
     }
-});
+}).ConfigurePrimaryHttpMessageHandler(() =>
+    allowInsecureArgo
+        ? new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator }
+        : new HttpClientHandler());
 
 // Configure GitHub Options (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
