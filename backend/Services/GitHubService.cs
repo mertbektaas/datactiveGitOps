@@ -60,6 +60,67 @@ public class GitHubService : IGitHubService
             throw;
         }
     }
+
+    public async Task<string?> GetWorkflowRunStatusAsync(string tag)
+    {
+        var owner = string.IsNullOrEmpty(_options.Owner) ? "mertbektaas" : _options.Owner;
+        var repo = "datactiveGitOps";
+        var url = $"repos/{owner}/{repo}/actions/runs?per_page=10";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch workflow runs from GitHub API. Status: {StatusCode}", response.StatusCode);
+                return null;
+            }
+
+            var runsResponse = await response.Content.ReadFromJsonAsync<GitHubWorkflowRunsResponse>();
+            if (runsResponse?.WorkflowRuns == null || !runsResponse.WorkflowRuns.Any())
+            {
+                return null;
+            }
+
+            // Find run matching the tag or pick the latest run
+            var run = runsResponse.WorkflowRuns.FirstOrDefault(r => 
+                (r.DisplayTitle != null && r.DisplayTitle.Contains(tag, StringComparison.OrdinalIgnoreCase)) ||
+                (r.Name != null && r.Name.Contains(tag, StringComparison.OrdinalIgnoreCase))) 
+                ?? runsResponse.WorkflowRuns.FirstOrDefault();
+
+            if (run == null) return null;
+
+            return MapGitHubRunStatus(run.Status, run.Conclusion);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching live workflow run status for Tag: {Tag}", tag);
+            return null;
+        }
+    }
+
+    private static string MapGitHubRunStatus(string? status, string? conclusion)
+    {
+        var s = status?.ToLowerInvariant();
+        var c = conclusion?.ToLowerInvariant();
+
+        if (s == "queued" || s == "requested" || s == "waiting")
+        {
+            return "queued";
+        }
+
+        if (s == "in_progress")
+        {
+            return "in_progress";
+        }
+
+        if (s == "completed")
+        {
+            return c == "success" ? "success" : "failure";
+        }
+
+        return "in_progress";
+    }
 }
 
 public class GitHubBranchResponse
@@ -69,4 +130,28 @@ public class GitHubBranchResponse
 
     [JsonPropertyName("protected")]
     public bool Protected { get; set; }
+}
+
+public class GitHubWorkflowRunsResponse
+{
+    [JsonPropertyName("workflow_runs")]
+    public List<GitHubWorkflowRunItem>? WorkflowRuns { get; set; }
+}
+
+public class GitHubWorkflowRunItem
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("display_title")]
+    public string? DisplayTitle { get; set; }
+
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("conclusion")]
+    public string? Conclusion { get; set; }
 }
