@@ -27,21 +27,34 @@ runs:
     - name: Overlay doğrula
       shell: bash
       run: |
-        OVERLAY="${{ inputs.overlay_path }}"
+        TARGET="${{ inputs.overlay_path }}"
+        FAILED=0
 
-        if [[ ! -f "$OVERLAY/kustomization.yaml" ]]; then
-          echo "HATA: $OVERLAY/kustomization.yaml bulunamadı."
-          echo "      Geçerli bir overlay en az kustomization.yaml içermelidir."
+        # Tek overlay mi, yoksa overlay koleksiyonu mu?
+        if [[ -f "$TARGET/kustomization.yaml" ]]; then
+          OVERLAYS=("$TARGET")
+        else
+          # Koleksiyon: kustomization.yaml içeren alt klasörleri bul
+          mapfile -t OVERLAYS < <(find "$TARGET" -name kustomization.yaml -exec dirname {} \; | sort)
+        fi
+
+        if [[ ${#OVERLAYS[@]} -eq 0 ]]; then
+          echo "HATA: '$TARGET' içinde kustomization.yaml bulunamadı."
+          echo "      En az bir geçerli overlay olmalıdır."
           exit 1
         fi
 
-        echo "==> kustomize build $OVERLAY"
-        if ! kustomize build "$OVERLAY" > /tmp/kustomize-output.yaml; then
-          echo "HATA: kustomize build başarısız — overlay bozuk."
-          echo "      ArgoCD bu overlay'i uygulayamazdı."
-          exit 1
-        fi
+        for OVERLAY in "${OVERLAYS[@]}"; do
+          echo "==> kustomize build $OVERLAY"
+          if ! kustomize build "$OVERLAY" > /tmp/kustomize-output.yaml; then
+            echo "HATA: $OVERLAY — kustomize build başarısız, overlay bozuk."
+            echo "      ArgoCD bu overlay'i uygulayamazdı."
+            FAILED=1
+            continue
+          fi
+          COUNT=$(grep -c '^kind:' /tmp/kustomize-output.yaml || true)
+          echo "OK: $OVERLAY — $COUNT kaynak üretildi."
+        done
 
-        COUNT=$(grep -c '^kind:' /tmp/kustomize-output.yaml || true)
-        echo "OK: Overlay geçerli — $COUNT kaynak üretildi."
         rm -f /tmp/kustomize-output.yaml
+        exit $FAILED
