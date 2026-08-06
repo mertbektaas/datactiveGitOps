@@ -27,6 +27,9 @@ builder.Services.AddMemoryCache();
 // Register Tag Generator Service (Solution 1 for K1.11)
 builder.Services.AddSingleton<ITagGeneratorService, TagGeneratorService>();
 
+// Register GitOps Overlay Service (Solution 1 for K1.10)
+builder.Services.AddScoped<IGitOpsOverlayService, GitOpsOverlayService>();
+
 // Configure GitHub Options (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
 
@@ -138,6 +141,17 @@ app.MapGet("/api/tags/generate", (string? branchWeb, string? branchServer, ITagG
 {
     var generatedTag = tagGenerator.GenerateTag(branchWeb, branchServer);
     return Results.Ok(new { tag = generatedTag });
+});
+
+// [FAZ-4] K1.10 — Generate & Commit GitOps Overlay Endpoint
+app.MapPost("/api/gitops/overlay", async (string targetNamespace, string tag, string schema, string ticket, IGitOpsOverlayService overlayService) =>
+{
+    var result = await overlayService.CreateAndCommitOverlayAsync(targetNamespace, tag, schema, ticket);
+    if (!result.Success)
+    {
+        return Results.Problem(detail: result.ErrorMessage, statusCode: 500, title: "GitOps Overlay Üretim/Push Hatası");
+    }
+    return Results.Ok(result);
 });
 
 // [FAZ-3] K1.8 & K1.11 — Real/Mock Build Dispatch Endpoint with Auto-Tag Generation Support

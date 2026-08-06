@@ -9,5 +9,6 @@ public class BuildHistory
     public string BranchServer { get; set; } = string.Empty;
     public string Schema { get; set; } = string.Empty;
     public string Status { get; set; } = "Pending";
+    public string? CommitSha { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
