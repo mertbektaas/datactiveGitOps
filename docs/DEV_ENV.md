@@ -88,6 +88,7 @@ GITHUB_REPO=mertbektaas/datactiveGitOps
 | Harbor | `harbor.datactive.net` | 1Password | K2 |
 | GitHub PAT | — | `~/.env` | K1 |
 | Sealed Secrets Cert | Cluster içinde | Controller'dan çek | K2 |
+| ArgoCD API | `http://localhost:18080` (test) | `ARGOCD_TOKEN` (ci-builder) | K2 / K1.16 |
 
 ---
 
