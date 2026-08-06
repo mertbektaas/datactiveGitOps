@@ -208,17 +208,43 @@ db_secret:
 
 ## 9. ArgoCD API Erişim Bilgisi
 
-**Durum: ⚠️ FAZ 5'TE DOLDURULACAK**
+**Durum: ✅ DOLDURULDU (test ortamında doğrulandı)**
 
 ```yaml
 argocd_api:
-  endpoint: ""
-  token: ""
-  rbac: ""
-  notes: "Faz 5'te K2.14 görevi ile doldurulacak"
+  # Test ortamı (k3d): port-forward 18080
+  # Production: boss sağlayacak (örn: https://argocd.datactive.net)
+  endpoint: "http://localhost:18080"
+  
+  # Auth: ArgoCD apiKey (ci-builder hesabı) — Bearer token
+  # Production'da boss'un sağladığı token kullanılır
+  auth:
+    type: "bearer-token"
+    token_ref: "ARGOCD_TOKEN (env) / k8s secret (K1.16)"
+    rbac: "build-* uygulamaları: get/create/sync (K2.14)"
+  
+  # Örnek istekler (K1.16'nın kullanacağı)
+  endpoints:
+    app_create: |
+      POST /api/v1/applications
+      { "metadata": { "name": "<namespace>" },
+        "spec": {
+          "project": "default",
+          "source": { "repoURL": "<repo>", "path": "manifests/overlays/<namespace>" },
+          "destination": { "server": "https://kubernetes.default.svc", "namespace": "<namespace>" } } }
+    app_sync: |
+      POST /api/v1/applications/<namespace>/sync
+    app_status: |
+      GET  /api/v1/applications/<namespace>?refresh=normal
+      → .status.sync.status (Synced/OutOfSync) + .status.health.status
+  
+  notes: |
+    - CLI karşılığı: scripts/argocd-app.sh (K2.13)
+    - Test ortamı token'ı geçicidir; production'da boss sağlar
+    - K1.16 web app bu endpoint'leri kullanır
 ```
 
-**Açıklama:** ArgoCD ile iletişim için gerekli bilgiler burada olacak. Şimdilik boş.
+**Açıklama:** K1.16, ArgoCD API'yi yukarıdaki endpoint'lerle çağırır. Auth: `Authorization: Bearer <token>`. Test ortamında doğrulandı (app create + sync + status).
 
 ---
 
