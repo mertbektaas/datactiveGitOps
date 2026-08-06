@@ -61,10 +61,11 @@ public class GitHubBuildProvider : IBuildProvider
             _logger.LogWarning("GitHub workflow dispatch returned status {StatusCode}: {Error}. Proceeding with resilient local record.", response.StatusCode, errContent);
         }
 
-        var namespaceName = $"build-{request.Tag.ToLowerInvariant()}";
+        // CONTRACT §2: namespace = build-{yyyyMMdd}-{ticket}
+        var ticket = request.Tag.Split('-').FirstOrDefault() ?? "K1";
+        var namespaceName = $"build-{DateTime.UtcNow:yyyyMMdd}-{ticket.ToLowerInvariant()}";
 
         // Create & commit Kustomize overlay (K1.10)
-        var ticket = request.Tag.Split('-').FirstOrDefault() ?? "K1";
         await _gitOpsOverlayService.CreateAndCommitOverlayAsync(namespaceName, request.Tag, request.Schema, ticket);
 
         // Record in PostgreSQL DB

@@ -113,6 +113,13 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// Veritabanı migration'larını otomatik uygula (ilk açılışta tablo oluşturur)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseCors("AllowAll");
 
 // Register API Key Security Middleware (K1.19)
