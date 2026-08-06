@@ -7,7 +7,7 @@ resources:
 
 images:
   - name: datactive-registry:5000/datateam/datactive.web
-    newTag: "BUILD-20260806-142136"
+    newTag: "BUILD-20260806-145034"
 
 configMapGenerator:
   - name: datactive-config
@@ -24,4 +24,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/image
-        value: datactive-registry:5000/datateam/datactive.web:BUILD-20260806-142136
+        value: datactive-registry:5000/datateam/datactive.web:BUILD-20260806-145034
