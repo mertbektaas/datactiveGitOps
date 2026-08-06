@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using backend.Data;
+using backend.Middleware;
 using backend.Models;
 using backend.Options;
 using backend.Services;
@@ -114,6 +115,9 @@ var app = builder.Build();
 
 app.UseCors("AllowAll");
 
+// Register API Key Security Middleware (K1.19)
+app.UseMiddleware<ApiKeyMiddleware>();
+
 // Map /health endpoint with custom JSON output format
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
@@ -210,13 +214,6 @@ app.MapPost("/api/argocd/sync/{appName}", async (string appName, IArgoCdService 
     return Results.Ok(result);
 });
 
-// [FAZ-6] K2.15 — ArgoCD Application Status (sync + health) Endpoint
-app.MapGet("/api/argocd/status/{appName}", async (string appName, IArgoCdService argoCdService) =>
-{
-    var result = await argoCdService.GetApplicationStatusAsync(appName);
-    return Results.Ok(result);
-});
-
 // [FAZ-3] K1.8 & K1.11 — Real/Mock Build Dispatch Endpoint with Auto-Tag Generation Support
 app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider, ITagGeneratorService tagGenerator, ILogger<Program> logger) =>
 {
@@ -289,14 +286,29 @@ app.MapGet("/api/builds/{id}/logs", async (string id, AppDbContext dbContext, IG
     });
 });
 
-// [FAZ-5] K1.15 — GetAll Builds Endpoint for Dashboard
-app.MapGet("/api/builds", async (AppDbContext dbContext, ILogger<Program> logger) =>
+// [FAZ-5 & FAZ-7] K1.15 & K1.19 — GetAll Builds Endpoint with Search & Audit History
+app.MapGet("/api/builds", async (string? search, int? limit, AppDbContext dbContext, ILogger<Program> logger) =>
 {
+    var takeLimit = limit.HasValue && limit.Value > 0 ? Math.Min(limit.Value, 100) : 50;
+
     try
     {
-        var builds = await dbContext.BuildHistories
+        var query = dbContext.BuildHistories.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(b => 
+                b.Tag.ToLower().Contains(term) ||
+                b.Namespace.ToLower().Contains(term) ||
+                b.Schema.ToLower().Contains(term) ||
+                b.BranchWeb.ToLower().Contains(term) ||
+                b.BranchServer.ToLower().Contains(term));
+        }
+
+        var builds = await query
             .OrderByDescending(b => b.CreatedAt)
-            .Take(50)
+            .Take(takeLimit)
             .Select(b => new
             {
                 buildId = b.Id.ToString(),
@@ -307,7 +319,9 @@ app.MapGet("/api/builds", async (AppDbContext dbContext, ILogger<Program> logger
                 schema = b.Schema,
                 status = b.Status,
                 commitSha = b.CommitSha,
-                createdAt = b.CreatedAt
+                runId = b.RunId,
+                createdAt = b.CreatedAt,
+                finishedAt = b.FinishedAt
             })
             .ToListAsync();
 
@@ -327,7 +341,9 @@ app.MapGet("/api/builds", async (AppDbContext dbContext, ILogger<Program> logger
                 schema = "schema_k1_5",
                 status = "queued",
                 commitSha = (string?)null,
-                createdAt = DateTime.UtcNow
+                runId = (string?)null,
+                createdAt = DateTime.UtcNow,
+                finishedAt = (DateTime?)null
             }
         });
     }
@@ -379,6 +395,11 @@ app.MapGet("/api/builds/{id}", async (string id, AppDbContext dbContext, IGitHub
                     buildRecord.Tag, buildRecord.Status, liveStatus);
 
                 buildRecord.Status = liveStatus;
+                if (liveStatus == "success" || liveStatus == "failure")
+                {
+                    buildRecord.FinishedAt = DateTime.UtcNow;
+                }
+
                 await dbContext.SaveChangesAsync();
             }
         }
