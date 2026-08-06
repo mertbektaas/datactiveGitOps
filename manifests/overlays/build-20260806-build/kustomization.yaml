@@ -7,12 +7,12 @@ resources:
 
 images:
   - name: datactive-registry:5000/datateam/datactive.web
-    newTag: "BUILD-20260806-151330"
+    newTag: "BUILD-20260806-151544"
 
 configMapGenerator:
   - name: datactive-config
     behavior: merge
     literals:
-      - DQLSchema=otomatik_test2
-      - CustomerMetadataSchema=otomatik_test2.
-      - ORACLEDataSchema=otomatik_test2.
+      - DQLSchema=full_auto_test
+      - CustomerMetadataSchema=full_auto_test.
+      - ORACLEDataSchema=full_auto_test.
