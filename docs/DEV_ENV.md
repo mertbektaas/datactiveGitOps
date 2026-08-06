@@ -71,10 +71,16 @@ docker login harbor.datactive.net
 
 **Yetkiler:**
 ```bash
-# ~/.env dosyasına ekle
+# GitHub
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 GITHUB_REPO=mertbektaas/datactiveGitOps
 ```
+
+> ⚠️ **Backend'i çalıştırmadan önce:** `GITHUB_TOKEN` env olarak export edilmeli, yoksa dispatch sessizce 401 alır (build tetiklenmez):
+> ```bash
+> export GITHUB_TOKEN="<PAT>"   # fine-grained PAT — C2.1
+> dotnet run
+> ```
 
 **Referans:** 1Password → "github-pat-template"
 
