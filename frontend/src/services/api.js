@@ -93,4 +93,14 @@ export const triggerArgoCdSync = async (appName) => {
   }
 };
 
+export const getArgoCdStatus = async (appName) => {
+  try {
+    const response = await apiClient.get(`/api/argocd/status/${appName}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching ArgoCD status for ${appName}:`, error);
+    throw error;
+  }
+};
+
 export default apiClient;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { getBuilds, getBuildStatus, triggerArgoCdSync } from '../services/api';
+import { getBuilds, getBuildStatus, triggerArgoCdSync, getArgoCdStatus } from '../services/api';
 import LogViewerModal from './LogViewerModal';
 
 export default function BuildStatusPanel({ latestBuildTrigger }) {
@@ -9,6 +9,7 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncingMap, setSyncingMap] = useState({});
   const [syncNotice, setSyncNotice] = useState(null);
+  const [argoStatusMap, setArgoStatusMap] = useState({});
 
   const [activeLogModal, setActiveLogModal] = useState({
     visible: false,
@@ -75,6 +76,17 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
     setIsRefreshing(true);
     fetchBuildsList();
   };
+
+  // ArgoCD sync/health durumunu çek (K2.15)
+  const fetchArgoStatus = useCallback(async (ns) => {
+    const appName = `app-${ns || 'build-test'}`;
+    try {
+      const status = await getArgoCdStatus(appName);
+      setArgoStatusMap((prev) => ({ ...prev, [appName]: status }));
+    } catch (err) {
+      setArgoStatusMap((prev) => ({ ...prev, [appName]: null }));
+    }
+  }, []);
 
   const handleReSyncArgoCd = async (ns) => {
     const appName = `app-${ns || 'build-test'}`;
@@ -164,6 +176,11 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
             const ns = item.namespaceName || item.namespace;
             const appName = `app-${ns}`;
             const isSyncing = syncingMap[appName];
+            const argo = argoStatusMap[appName];
+
+            useEffect(() => {
+              fetchArgoStatus(ns);
+            }, [ns, latestBuildTrigger]);
 
             return (
               <View key={item.buildId} style={styles.buildCard}>
@@ -185,6 +202,36 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
                   <Text style={styles.detailText}>
                     <Text style={styles.bold}>Şema:</Text> {item.schema}
                   </Text>
+                  {argo && (
+                    <View style={styles.argoRow}>
+                      <View
+                        style={[
+                          styles.argoBadge,
+                          argo.syncStatus === 'Synced'
+                            ? styles.argoSynced
+                            : styles.argoOutOfSync,
+                        ]}
+                      >
+                        <Text style={styles.argoBadgeText}>
+                          ArgoCD Sync: {argo.syncStatus}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.argoBadge,
+                          argo.healthStatus === 'Healthy'
+                            ? styles.argoHealthy
+                            : argo.healthStatus === 'Progressing'
+                              ? styles.argoProgressing
+                              : styles.argoDegraded,
+                        ]}
+                      >
+                        <Text style={styles.argoBadgeText}>
+                          Health: {argo.healthStatus}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                   {item.commitSha && (
                     <Text style={styles.detailText}>
                       <Text style={styles.bold}>Commit SHA:</Text> {item.commitSha.substring(0, 7)}
@@ -412,6 +459,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
   },
   syncBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  argoRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  argoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  argoSynced: {
+    backgroundColor: '#064e3b',
+  },
+  argoOutOfSync: {
+    backgroundColor: '#7f1d1d',
+  },
+  argoHealthy: {
+    backgroundColor: '#064e3b',
+  },
+  argoProgressing: {
+    backgroundColor: '#1d4ed8',
+  },
+  argoDegraded: {
+    backgroundColor: '#7f1d1d',
+  },
+  argoBadgeText: {
     color: '#ffffff',
     fontSize: 11,
     fontWeight: 'bold',
