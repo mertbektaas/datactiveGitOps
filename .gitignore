@@ -23,6 +23,8 @@ yarn-error.log*
 kubeconfig
 *secret*
 !manifests/base/datactive-secret.yaml
+!manifests/base/datactive-sealed-secret.yaml
+!scripts/seal-secret.sh
 !docs/SEALED_SECRETS_SETUP.md
 !manifests/sealed-secrets/
 !manifests/sealed-secrets/*
