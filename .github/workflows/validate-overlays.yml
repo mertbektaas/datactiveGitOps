@@ -1,0 +1,26 @@
+name: Validate Overlays
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "manifests/**"
+  push:
+    paths:
+      - "manifests/**"
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: arc-runner-set
+    container:
+      image: datactive-registry:5000/datateam/datactive-build:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Overlay'ları doğrula
+        uses: ./.github/actions/validate-overlay
+        with:
+          overlay_path: manifests/overlays

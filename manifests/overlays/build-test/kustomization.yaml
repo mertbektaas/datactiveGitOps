@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: build-test-20260806
+resources:
+  - ../../base
+images:
+  - name: harbor.datactive.net/datateam/datactive.web
+    newTag: test-001
