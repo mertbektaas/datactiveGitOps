@@ -54,6 +54,31 @@ runs:
           fi
           COUNT=$(grep -c '^kind:' /tmp/kustomize-output.yaml || true)
           echo "OK: $OVERLAY — $COUNT kaynak üretildi."
+
+          # --- SEMANTİK KONTROL (K1.10 overlay uyumu) ---
+          KUSTOMIZATION="$OVERLAY/kustomization.yaml"
+
+          # 1) Image adı: base'deki gerçek image adıyla eşleşmeli
+          BASE_IMAGES=$(grep -rh "image:" "${{ github.workspace }}/manifests/base/deployment.yaml" 2>/dev/null | sed 's/.*image: *//' | sed 's/:.*//' || true)
+          for IMG in $BASE_IMAGES; do
+            if ! grep -q "$IMG" "$KUSTOMIZATION"; then
+              echo "HATA: $OVERLAY — image adı '$IMG' overlay'de yok/yanlış."
+              echo "      K1.10: 'harbor.datactive.net/datateam/datactive.web' olmalı (base ile aynı)."
+              FAILED=1
+            fi
+          done
+
+          # 2) Schema env'i: CONTRACT'taki doğru değişken adları kullanılmalı
+          if grep -q "DB_SCHEMA" "$KUSTOMIZATION"; then
+            echo "HATA: $OVERLAY — 'DB_SCHEMA' yanlış değişken adı."
+            echo "      Doğrusu: DQLSchema (veya CustomerMetadataSchema, ORACLEDataSchema)."
+            FAILED=1
+          fi
+
+          # 3) Schema literals'i olmalı (ConfigMap merge kontrolü)
+          if ! grep -qE "DQLSchema" "$KUSTOMIZATION"; then
+            echo "UYARI: $OVERLAY — DQLSchema literal'i bulunamadı (schema ConfigMap'e eklenmemiş olabilir)."
+          fi
         done
 
         rm -f /tmp/kustomize-output.yaml
