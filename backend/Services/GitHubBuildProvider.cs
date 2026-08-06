@@ -12,6 +12,7 @@ public class GitHubBuildProvider : IBuildProvider
     private readonly HttpClient _httpClient;
     private readonly IGitHubService _gitHubService;
     private readonly IGitOpsOverlayService _gitOpsOverlayService;
+    private readonly IArgoCdService _argoCdService;
     private readonly AppDbContext _dbContext;
     private readonly GitHubOptions _options;
     private readonly ILogger<GitHubBuildProvider> _logger;
@@ -20,6 +21,7 @@ public class GitHubBuildProvider : IBuildProvider
         HttpClient httpClient,
         IGitHubService gitHubService,
         IGitOpsOverlayService gitOpsOverlayService,
+        IArgoCdService argoCdService,
         AppDbContext dbContext,
         IOptions<GitHubOptions> options,
         ILogger<GitHubBuildProvider> logger)
@@ -27,6 +29,7 @@ public class GitHubBuildProvider : IBuildProvider
         _httpClient = httpClient;
         _gitHubService = gitHubService;
         _gitOpsOverlayService = gitOpsOverlayService;
+        _argoCdService = argoCdService;
         _dbContext = dbContext;
         _options = options.Value;
         _logger = logger;
@@ -67,6 +70,18 @@ public class GitHubBuildProvider : IBuildProvider
 
         // Create & commit Kustomize overlay (K1.10)
         await _gitOpsOverlayService.CreateAndCommitOverlayAsync(namespaceName, request.Tag, request.Schema, ticket);
+
+        // ArgoCD: Application oluştur/upsert + otomatik sync (K1.16 akışı)
+        try
+        {
+            var overlayPath = $"manifests/overlays/{namespaceName}";
+            var syncResult = await _argoCdService.CreateAndSyncApplicationAsync(namespaceName, namespaceName, overlayPath);
+            _logger.LogInformation("ArgoCD auto sync for '{App}': {Status} — {Message}", namespaceName, syncResult.Status, syncResult.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ArgoCD auto sync başarısız — elle sync gerekebilir (app: {App})", namespaceName);
+        }
 
         // Record in PostgreSQL DB
         try

@@ -34,9 +34,18 @@ builder.Services.AddScoped<IGitOpsOverlayService, GitOpsOverlayService>();
 // Register ArgoCD Service (Solution 1 for K1.16)
 builder.Services.AddHttpClient<IArgoCdService, ArgoCdService>((sp, client) =>
 {
-    client.BaseAddress = new Uri("https://argocd.datactive.net/");
+    // ARGOCD_BASE_URL env ile override edilebilir (test: http://localhost:18080)
+    var argocdBase = Environment.GetEnvironmentVariable("ARGOCD_BASE_URL") ?? "https://argocd.datactive.net/";
+    client.BaseAddress = new Uri(argocdBase);
     client.DefaultRequestHeaders.Add("User-Agent", "DatactiveGitOps-Backend");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+    // ARGOCD_TOKEN env ile Bearer token (K2.14 ci-builder)
+    var argocdToken = Environment.GetEnvironmentVariable("ARGOCD_TOKEN");
+    if (!string.IsNullOrEmpty(argocdToken))
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", argocdToken);
+    }
 });
 
 // Configure GitHub Options (K1.5)

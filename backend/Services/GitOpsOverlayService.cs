@@ -1,16 +1,19 @@
 using System.Diagnostics;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace backend.Services;
 
 public class GitOpsOverlayService : IGitOpsOverlayService
 {
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<GitOpsOverlayService> _logger;
 
-    public GitOpsOverlayService(IWebHostEnvironment environment, ILogger<GitOpsOverlayService> logger)
+    public GitOpsOverlayService(IWebHostEnvironment environment, IConfiguration configuration, ILogger<GitOpsOverlayService> logger)
     {
         _environment = environment;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -40,7 +43,7 @@ public class GitOpsOverlayService : IGitOpsOverlayService
                 .AppendLine("  - \"../../base\"")
                 .AppendLine()
                 .AppendLine("images:")
-                .AppendLine("  - name: harbor.datactive.net/datateam/datactive.web")
+                .AppendLine($"  - name: {_configuration["Registry:Image"] ?? "harbor.datactive.net/datateam/datactive.web"}")
                 .AppendLine($"    newTag: \"{tag}\"")
                 .AppendLine()
                 .AppendLine("configMapGenerator:")
