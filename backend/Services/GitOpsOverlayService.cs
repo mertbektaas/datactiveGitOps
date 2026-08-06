@@ -117,7 +117,8 @@ public class GitOpsOverlayService : IGitOpsOverlayService
             var shaResult = await RunProcessAsync("git", "rev-parse HEAD", repoRoot);
             var commitSha = shaResult.ExitCode == 0 ? shaResult.Output.Trim() : null;
 
-            // git push
+            // git push (önce remote'u pull --rebase: başkasının push'larıyla çakışma olmasın)
+            await RunProcessAsync("git", "pull --rebase", repoRoot);
             var pushResult = await RunProcessAsync("git", "push", repoRoot);
             if (pushResult.ExitCode != 0)
             {
