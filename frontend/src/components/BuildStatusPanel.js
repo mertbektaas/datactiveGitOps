@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { getBuilds, getBuildStatus } from '../services/api';
+import { getBuilds, getBuildStatus, triggerArgoCdSync } from '../services/api';
 
 export default function BuildStatusPanel({ latestBuildTrigger }) {
   const [builds, setBuilds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncingMap, setSyncingMap] = useState({});
+  const [syncNotice, setSyncNotice] = useState(null);
 
   const fetchBuildsList = useCallback(async () => {
     try {
@@ -67,6 +69,21 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
     fetchBuildsList();
   };
 
+  const handleReSyncArgoCd = async (ns) => {
+    const appName = `app-${ns || 'build-test'}`;
+    setSyncingMap((prev) => ({ ...prev, [appName]: true }));
+    setSyncNotice(null);
+
+    try {
+      const result = await triggerArgoCdSync(appName);
+      setSyncNotice(`✅ ${appName} için ArgoCD Sync sinyali gönderildi! (${result.status})`);
+    } catch (err) {
+      setSyncNotice(`⚠️ Sync hatası: ${err.message}`);
+    } finally {
+      setSyncingMap((prev) => ({ ...prev, [appName]: false }));
+    }
+  };
+
   const getStatusBadge = (status) => {
     const s = (status || '').toLowerCase();
 
@@ -105,7 +122,7 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>3. Canlı Build & Dağıtım Takip Paneli</Text>
+        <Text style={styles.sectionTitle}>3. Canlı Build & ArgoCD Dağıtım Paneli</Text>
         <TouchableOpacity
           style={styles.refreshBtn}
           onPress={handleManualRefresh}
@@ -119,6 +136,12 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
         </TouchableOpacity>
       </View>
 
+      {syncNotice && (
+        <View style={styles.noticeBox}>
+          <Text style={styles.noticeText}>{syncNotice}</Text>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color="#3b82f6" />
@@ -130,37 +153,58 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
         </View>
       ) : (
         <View style={styles.listContainer}>
-          {builds.map((item) => (
-            <View key={item.buildId} style={styles.buildCard}>
-              <View style={styles.cardTopRow}>
-                <View style={styles.idContainer}>
-                  <Text style={styles.buildIdText}>Build #{item.buildId}</Text>
-                  <Text style={styles.tagText}>{item.tag}</Text>
-                </View>
-                {getStatusBadge(item.status)}
-              </View>
+          {builds.map((item) => {
+            const ns = item.namespaceName || item.namespace;
+            const appName = `app-${ns}`;
+            const isSyncing = syncingMap[appName];
 
-              <View style={styles.cardDetails}>
-                <Text style={styles.detailText}>
-                  <Text style={styles.bold}>Namespace:</Text> {item.namespaceName || item.namespace}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={styles.bold}>Branchler:</Text> Web ({item.branchWeb}) | Server ({item.branchServer})
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={styles.bold}>Şema:</Text> {item.schema}
-                </Text>
-                {item.commitSha && (
+            return (
+              <View key={item.buildId} style={styles.buildCard}>
+                <View style={styles.cardTopRow}>
+                  <View style={styles.idContainer}>
+                    <Text style={styles.buildIdText}>Build #{item.buildId}</Text>
+                    <Text style={styles.tagText}>{item.tag}</Text>
+                  </View>
+                  {getStatusBadge(item.status)}
+                </View>
+
+                <View style={styles.cardDetails}>
                   <Text style={styles.detailText}>
-                    <Text style={styles.bold}>Commit SHA:</Text> {item.commitSha.substring(0, 7)}
+                    <Text style={styles.bold}>Namespace:</Text> {ns}
                   </Text>
-                )}
-                <Text style={styles.timeText}>
-                  {new Date(item.createdAt).toLocaleString('tr-TR')}
-                </Text>
+                  <Text style={styles.detailText}>
+                    <Text style={styles.bold}>Branchler:</Text> Web ({item.branchWeb}) | Server ({item.branchServer})
+                  </Text>
+                  <Text style={styles.detailText}>
+                    <Text style={styles.bold}>Şema:</Text> {item.schema}
+                  </Text>
+                  {item.commitSha && (
+                    <Text style={styles.detailText}>
+                      <Text style={styles.bold}>Commit SHA:</Text> {item.commitSha.substring(0, 7)}
+                    </Text>
+                  )}
+                  
+                  <View style={styles.cardActionRow}>
+                    <Text style={styles.timeText}>
+                      {new Date(item.createdAt).toLocaleString('tr-TR')}
+                    </Text>
+
+                    <TouchableOpacity
+                      style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+                      onPress={() => handleReSyncArgoCd(ns)}
+                      disabled={isSyncing}
+                    >
+                      {isSyncing ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text style={styles.syncBtnText}>⚡ ArgoCD Re-Sync</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>
@@ -198,6 +242,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   refreshBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noticeBox: {
+    backgroundColor: '#0284c7',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 14,
+  },
+  noticeText: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
@@ -292,9 +347,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#94a3b8',
   },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
   timeText: {
     fontSize: 11,
     color: '#64748b',
-    marginTop: 4,
+  },
+  syncBtn: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  syncBtnDisabled: {
+    backgroundColor: '#374151',
+  },
+  syncBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

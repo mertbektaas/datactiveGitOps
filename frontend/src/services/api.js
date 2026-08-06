@@ -73,4 +73,14 @@ export const getBuildStatus = async (buildId) => {
   }
 };
 
+export const triggerArgoCdSync = async (appName) => {
+  try {
+    const response = await apiClient.post(`/api/argocd/sync/${appName}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error triggering ArgoCD sync for ${appName}:`, error);
+    throw error;
+  }
+};
+
 export default apiClient;

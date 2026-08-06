@@ -30,6 +30,14 @@ builder.Services.AddSingleton<ITagGeneratorService, TagGeneratorService>();
 // Register GitOps Overlay Service (Solution 1 for K1.10)
 builder.Services.AddScoped<IGitOpsOverlayService, GitOpsOverlayService>();
 
+// Register ArgoCD Service (Solution 1 for K1.16)
+builder.Services.AddHttpClient<IArgoCdService, ArgoCdService>((sp, client) =>
+{
+    client.BaseAddress = new Uri("https://argocd.datactive.net/");
+    client.DefaultRequestHeaders.Add("User-Agent", "DatactiveGitOps-Backend");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
 // Configure GitHub Options (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
 
@@ -169,14 +177,25 @@ app.MapGet("/api/schemas", () =>
     return Results.Ok(schemas);
 });
 
-// [FAZ-4] K1.10 — Generate & Commit GitOps Overlay Endpoint
-app.MapPost("/api/gitops/overlay", async (string targetNamespace, string tag, string schema, string ticket, IGitOpsOverlayService overlayService) =>
+// [FAZ-4] K1.10 & K1.16 — Generate & Commit GitOps Overlay + Trigger ArgoCD Sync Endpoint
+app.MapPost("/api/gitops/overlay", async (string targetNamespace, string tag, string schema, string ticket, IGitOpsOverlayService overlayService, IArgoCdService argoCdService) =>
 {
     var result = await overlayService.CreateAndCommitOverlayAsync(targetNamespace, tag, schema, ticket);
     if (!result.Success)
     {
         return Results.Problem(detail: result.ErrorMessage, statusCode: 500, title: "GitOps Overlay Üretim/Push Hatası");
     }
+
+    // Trigger ArgoCD Sync automatically on Overlay Commit (K1.16)
+    var argoResult = await argoCdService.CreateAndSyncApplicationAsync($"app-{targetNamespace}", targetNamespace, result.OverlayPath);
+
+    return Results.Ok(new { overlay = result, argoCd = argoResult });
+});
+
+// [FAZ-6] K1.16 — Manual ArgoCD Application Sync Endpoint
+app.MapPost("/api/argocd/sync/{appName}", async (string appName, IArgoCdService argoCdService) =>
+{
+    var result = await argoCdService.TriggerSyncAsync(appName);
     return Results.Ok(result);
 });
 
