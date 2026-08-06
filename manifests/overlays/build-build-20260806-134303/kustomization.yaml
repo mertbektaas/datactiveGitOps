@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: build-build-20260806-134303
+
+resources:
+  - "../../base"
+
+images:
+  - name: harbor.datactive.net/datateam/datactive.web
+    newTag: "BUILD-20260806-134303"
+
+configMapGenerator:
+  - name: datactive-config
+    behavior: merge
+    literals:
+      - DQLSchema=schema_test
+      - CustomerMetadataSchema=schema_test.
+      - ORACLEDataSchema=schema_test.
