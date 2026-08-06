@@ -7,7 +7,11 @@ resources:
 
 images:
   - name: datactive-registry:5000/datateam/datactive.web
+<<<<<<< HEAD
     newTag: "BUILD-20260806-152118"
+=======
+    newTag: "BUILD-20260806-151732"
+>>>>>>> cf8490ec0d000c55fcc59e68cd03ba394293658a
 
 configMapGenerator:
   - name: datactive-config
