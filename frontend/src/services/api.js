@@ -73,6 +73,16 @@ export const getBuildStatus = async (buildId) => {
   }
 };
 
+export const getBuildLogs = async (buildId) => {
+  try {
+    const response = await apiClient.get(`/api/builds/${buildId}/logs`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching logs for ${buildId}:`, error);
+    throw error;
+  }
+};
+
 export const triggerArgoCdSync = async (appName) => {
   try {
     const response = await apiClient.post(`/api/argocd/sync/${appName}`);

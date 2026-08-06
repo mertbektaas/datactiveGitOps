@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { getBuilds, getBuildStatus, triggerArgoCdSync } from '../services/api';
+import LogViewerModal from './LogViewerModal';
 
 export default function BuildStatusPanel({ latestBuildTrigger }) {
   const [builds, setBuilds] = useState([]);
@@ -8,6 +9,12 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncingMap, setSyncingMap] = useState({});
   const [syncNotice, setSyncNotice] = useState(null);
+
+  const [activeLogModal, setActiveLogModal] = useState({
+    visible: false,
+    buildId: null,
+    tag: null,
+  });
 
   const fetchBuildsList = useCallback(async () => {
     try {
@@ -183,23 +190,38 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
                       <Text style={styles.bold}>Commit SHA:</Text> {item.commitSha.substring(0, 7)}
                     </Text>
                   )}
-                  
+
                   <View style={styles.cardActionRow}>
                     <Text style={styles.timeText}>
                       {new Date(item.createdAt).toLocaleString('tr-TR')}
                     </Text>
 
-                    <TouchableOpacity
-                      style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
-                      onPress={() => handleReSyncArgoCd(ns)}
-                      disabled={isSyncing}
-                    >
-                      {isSyncing ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text style={styles.syncBtnText}>⚡ ArgoCD Re-Sync</Text>
-                      )}
-                    </TouchableOpacity>
+                    <View style={styles.btnGroup}>
+                      <TouchableOpacity
+                        style={styles.logsBtn}
+                        onPress={() =>
+                          setActiveLogModal({
+                            visible: true,
+                            buildId: item.buildId,
+                            tag: item.tag,
+                          })
+                        }
+                      >
+                        <Text style={styles.logsBtnText}>📄 Logları İncele</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+                        onPress={() => handleReSyncArgoCd(ns)}
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.syncBtnText}>⚡ ArgoCD Re-Sync</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -207,6 +229,14 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
           })}
         </View>
       )}
+
+      {/* Log Terminal Viewer Modal */}
+      <LogViewerModal
+        visible={activeLogModal.visible}
+        buildId={activeLogModal.buildId}
+        tag={activeLogModal.tag}
+        onClose={() => setActiveLogModal({ visible: false, buildId: null, tag: null })}
+      />
     </View>
   );
 }
@@ -356,6 +386,21 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 11,
     color: '#64748b',
+  },
+  btnGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  logsBtn: {
+    backgroundColor: '#334155',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  logsBtnText: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   syncBtn: {
     backgroundColor: '#059669',

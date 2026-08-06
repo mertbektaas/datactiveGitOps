@@ -237,6 +237,40 @@ app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildP
     }
 });
 
+// [FAZ-6] K1.17 — Get Build Workflow Logs Endpoint
+app.MapGet("/api/builds/{id}/logs", async (string id, AppDbContext dbContext, IGitHubService gitHubService, ILogger<Program> logger) =>
+{
+    BuildHistory? buildRecord = null;
+    try
+    {
+        if (int.TryParse(id, out var numericId))
+        {
+            buildRecord = await dbContext.BuildHistories.FindAsync(numericId);
+        }
+
+        if (buildRecord == null)
+        {
+            buildRecord = await dbContext.BuildHistories
+                .FirstOrDefaultAsync(b => b.Tag == id || b.Namespace == id);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not query PostgreSQL DB for build logs '{Id}'.", id);
+    }
+
+    var targetTag = buildRecord?.Tag ?? id;
+    var logs = await gitHubService.GetRunLogsAsync(targetTag);
+
+    return Results.Ok(new
+    {
+        buildId = id,
+        tag = targetTag,
+        logs = logs,
+        timestamp = DateTime.UtcNow
+    });
+});
+
 // [FAZ-5] K1.15 — GetAll Builds Endpoint for Dashboard
 app.MapGet("/api/builds", async (AppDbContext dbContext, ILogger<Program> logger) =>
 {

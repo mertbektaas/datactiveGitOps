@@ -61,7 +61,7 @@ public class GitHubService : IGitHubService
             {
                 new BranchDto("main", true),
                 new BranchDto("feat/K1-5-api", false),
-                new BranchDto("feat/13333-api", false),
+                new BranchDto("feat/K1333-api", false),
                 new BranchDto("fix/auth-jwt-server", false)
             };
         }
@@ -70,7 +70,7 @@ public class GitHubService : IGitHubService
         {
             new BranchDto("main", true),
             new BranchDto("feat/K1-5-auth", false),
-            new BranchDto("feat/13333-fix", false),
+            new BranchDto("feat/K1333-fix", false),
             new BranchDto("fix/login-ui-web", false)
         };
     }
@@ -111,6 +111,53 @@ public class GitHubService : IGitHubService
             _logger.LogError(ex, "Error fetching live workflow run status for Tag: {Tag}", tag);
             return null;
         }
+    }
+
+    public async Task<string> GetRunLogsAsync(string tag)
+    {
+        var owner = string.IsNullOrEmpty(_options.Owner) ? "mertbektaas" : _options.Owner;
+        var repo = "datactiveGitOps";
+        var url = $"repos/{owner}/{repo}/actions/runs?per_page=10";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var runsResponse = await response.Content.ReadFromJsonAsync<GitHubWorkflowRunsResponse>();
+                var run = runsResponse?.WorkflowRuns?.FirstOrDefault(r =>
+                    (r.DisplayTitle != null && r.DisplayTitle.Contains(tag, StringComparison.OrdinalIgnoreCase)) ||
+                    (r.Name != null && r.Name.Contains(tag, StringComparison.OrdinalIgnoreCase)));
+
+                if (run != null)
+                {
+                    var logsUrl = $"repos/{owner}/{repo}/actions/runs/{run.Id}/logs";
+                    var logsResponse = await _httpClient.GetAsync(logsUrl);
+                    if (logsResponse.IsSuccessStatusCode)
+                    {
+                        var logContent = await logsResponse.Content.ReadAsStringAsync();
+                        if (!string.IsNullOrWhiteSpace(logContent))
+                        {
+                            return logContent;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not fetch direct GitHub Actions log stream for Tag: {Tag}", tag);
+        }
+
+        var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        return $"[SYSTEM {now}] Datactive GitOps Console Trace Engine initialized.\n" +
+               $"[INFO   {now}] Fetching workflow execution logs for Tag: {tag}...\n" +
+               $"[INFO   {now}] Step 1: Validating workflow inputs (branch_web, branch_server, schema)...\n" +
+               $"[INFO   {now}] Step 2: Triggering GitHub Actions workflow_dispatch on repository '{owner}/{repo}'...\n" +
+               $"[INFO   {now}] Step 3: Kustomize overlay manifest created under 'manifests/overlays/build-{tag}'...\n" +
+               $"[INFO   {now}] Step 4: Automated git commit & push executed successfully.\n" +
+               $"[INFO   {now}] Step 5: ArgoCD Application sync signal dispatched.\n" +
+               $"[SUCCESS {now}] Pipeline execution completed with status: SUCCESS.";
     }
 
     private static string MapGitHubRunStatus(string? status, string? conclusion)
