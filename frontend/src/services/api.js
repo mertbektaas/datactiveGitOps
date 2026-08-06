@@ -53,6 +53,16 @@ export const dispatchBuild = async (buildData) => {
   }
 };
 
+export const getBuilds = async () => {
+  try {
+    const response = await apiClient.get('/api/builds');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching builds list:', error);
+    return [];
+  }
+};
+
 export const getBuildStatus = async (buildId) => {
   try {
     const response = await apiClient.get(`/api/builds/${buildId}`);

@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import axios from 'axios';
 import BranchSelector from './src/components/BranchSelector';
 import DeployForm from './src/components/DeployForm';
+import BuildStatusPanel from './src/components/BuildStatusPanel';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -76,6 +77,9 @@ export default function App() {
 
           {/* Deploy Form Component (K1.14) */}
           <DeployForm selectedPair={selectedPair} onBuildSuccess={setLatestBuild} />
+
+          {/* Live Build Status Panel (K1.15) */}
+          <BuildStatusPanel latestBuildTrigger={latestBuild} />
         </View>
 
         {/* Backend Status Card */}
@@ -214,7 +218,7 @@ const styles = StyleSheet.create({
   },
   statusRow: {
     flexDirection: 'row',
-    justify.content: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 8,
   },

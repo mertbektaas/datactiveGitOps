@@ -218,6 +218,29 @@ app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildP
     }
 });
 
+// [FAZ-5] K1.15 — GetAll Builds Endpoint for Dashboard
+app.MapGet("/api/builds", async (AppDbContext dbContext) =>
+{
+    var builds = await dbContext.BuildHistories
+        .OrderByDescending(b => b.CreatedAt)
+        .Take(50)
+        .Select(b => new
+        {
+            buildId = b.Id.ToString(),
+            tag = b.Tag,
+            namespaceName = b.Namespace,
+            branchWeb = b.BranchWeb,
+            branchServer = b.BranchServer,
+            schema = b.Schema,
+            status = b.Status,
+            commitSha = b.CommitSha,
+            createdAt = b.CreatedAt
+        })
+        .ToListAsync();
+
+    return Results.Ok(builds);
+});
+
 // [FAZ-3] K1.9 — Live Build Status Endpoint with On-Demand Refresh & DB Sync
 app.MapGet("/api/builds/{id}", async (string id, AppDbContext dbContext, IGitHubService gitHubService, ILogger<Program> logger) =>
 {
