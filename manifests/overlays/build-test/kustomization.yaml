@@ -14,4 +14,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/image
-        value: datactive-registry:5000/datateam/datactive.web:C3-1-20260806-151600
+        value: datactive-registry:5000/datateam/datactive.web:U2E-20260806-160000
