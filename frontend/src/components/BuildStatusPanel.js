@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { getBuilds, getBuildStatus, triggerArgoCdSync, getArgoCdStatus } from '../services/api';
 import LogViewerModal from './LogViewerModal';
 
@@ -7,6 +7,7 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
   const [builds, setBuilds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [syncingMap, setSyncingMap] = useState({});
   const [syncNotice, setSyncNotice] = useState(null);
   const [argoStatusMap, setArgoStatusMap] = useState({});
@@ -17,9 +18,9 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
     tag: null,
   });
 
-  const fetchBuildsList = useCallback(async () => {
+  const fetchBuildsList = useCallback(async (query = searchQuery) => {
     try {
-      const data = await getBuilds();
+      const data = await getBuilds(query);
       setBuilds(data || []);
 
       // On-demand refresh for any active builds (queued or in_progress)
@@ -51,11 +52,17 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchBuildsList();
   }, [fetchBuildsList, latestBuildTrigger]);
+
+  // Handle Search Input Change
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+    fetchBuildsList(text);
+  };
 
   // Polling loop: Refresh active builds every 5 seconds
   useEffect(() => {
@@ -155,6 +162,17 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
         </TouchableOpacity>
       </View>
 
+      {/* Search Input Filter */}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="🔍 Tag, Bilet (K1-5), Namespace veya Şema ile geçmişte ara..."
+          placeholderTextColor="#64748b"
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+        />
+      </View>
+
       {syncNotice && (
         <View style={styles.noticeBox}>
           <Text style={styles.noticeText}>{syncNotice}</Text>
@@ -168,7 +186,7 @@ export default function BuildStatusPanel({ latestBuildTrigger }) {
         </View>
       ) : builds.length === 0 ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>Henüz başlatılmış bir build bulunmuyor.</Text>
+          <Text style={styles.emptyText}>Aranan kriterlere uygun kaydolmuş bir build bulunamadı.</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>
@@ -302,7 +320,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
     paddingBottom: 8,
@@ -322,6 +340,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  searchRow: {
+    marginBottom: 14,
+  },
+  searchInput: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#f8fafc',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   noticeBox: {
     backgroundColor: '#0284c7',

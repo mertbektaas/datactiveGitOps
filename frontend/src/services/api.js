@@ -1,11 +1,13 @@
 import axios from 'axios';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
+const API_KEY = process.env.EXPO_PUBLIC_API_KEY || 'datactive-gitops-secret-key-2026';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-API-KEY': API_KEY,
   },
 });
 
@@ -53,9 +55,10 @@ export const dispatchBuild = async (buildData) => {
   }
 };
 
-export const getBuilds = async () => {
+export const getBuilds = async (search = '') => {
   try {
-    const response = await apiClient.get('/api/builds');
+    const url = search ? `/api/builds?search=${encodeURIComponent(search)}` : '/api/builds';
+    const response = await apiClient.get(url);
     return response.data;
   } catch (error) {
     console.error('Error fetching builds list:', error);

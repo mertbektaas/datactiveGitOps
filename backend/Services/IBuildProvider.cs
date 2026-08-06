@@ -4,5 +4,7 @@ namespace backend.Services;
 
 public interface IBuildProvider
 {
-    Task<BuildStatusDto> DispatchBuildAsync(BuildRequestDto request);
+    Task<BuildResultDto> DispatchBuildAsync(BuildRequestDto request);
+    Task<string?> GetStatusAsync(string tag);
+    Task<string> GetLogsAsync(string tag);
 }
