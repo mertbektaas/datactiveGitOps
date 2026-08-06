@@ -16,3 +16,11 @@ public record BuildStatusDto(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("createdAt")] DateTime CreatedAt
 );
+
+public record BuildResultDto(
+    [property: JsonPropertyName("buildId")] string BuildId,
+    [property: JsonPropertyName("tag")] string Tag,
+    [property: JsonPropertyName("namespace")] string Namespace,
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("message")] string Message
+);

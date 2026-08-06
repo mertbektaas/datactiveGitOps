@@ -59,11 +59,22 @@ builder.Services.AddHttpClient<IGitHubService, GitHubService>((sp, client) =>
     }
 });
 
-// Configure Build Provider with Feature Switch (K1.8)
+// Configure Build Provider with Feature Switch & Strategy Pattern (K1.8 & K1.18)
+var providerType = builder.Configuration.GetValue<string>("BuildProvider", "GitHub")?.Trim();
 var useMockBuildProvider = builder.Configuration.GetValue<bool>("UseMockBuildProvider", false);
-if (useMockBuildProvider)
+
+if (useMockBuildProvider || string.Equals(providerType, "Mock", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddScoped<IBuildProvider, MockBuildProvider>();
+}
+else if (string.Equals(providerType, "Azure", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<IBuildProvider, AzureDevOpsBuildProvider>((sp, client) =>
+    {
+        client.BaseAddress = new Uri("https://dev.azure.com/datactive/");
+        client.DefaultRequestHeaders.Add("User-Agent", "DatactiveGitOps-Backend");
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+    });
 }
 else
 {

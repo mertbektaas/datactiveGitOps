@@ -11,25 +11,36 @@ public class MockBuildProvider : IBuildProvider
         _logger = logger;
     }
 
-    public Task<BuildStatusDto> DispatchBuildAsync(BuildRequestDto request)
+    public Task<BuildResultDto> DispatchBuildAsync(BuildRequestDto request)
     {
-        _logger.LogInformation(
-            "Mock dispatching build for Web: {BranchWeb}, Server: {BranchServer}, Schema: {Schema}, Tag: {Tag}",
-            request.BranchWeb, request.BranchServer, request.Schema, request.Tag
-        );
+        _logger.LogInformation("MockBuildProvider: Simulating build dispatch for Tag: {Tag}", request.Tag);
 
-        var buildId = Guid.NewGuid().ToString("N");
-        var ticketPart = request.Tag.Contains('-') ? request.Tag.Split('-')[0] : "K1";
-        var targetNamespace = $"build-{DateTime.UtcNow:yyyyMMdd}-{ticketPart}";
+        var namespaceName = $"build-{request.Tag.ToLowerInvariant()}";
 
-        var status = new BuildStatusDto(
-            BuildId: buildId,
+        var result = new BuildResultDto(
+            BuildId: Guid.NewGuid().ToString("N").Substring(0, 8),
             Tag: request.Tag,
-            Namespace: targetNamespace,
+            Namespace: namespaceName,
             Status: "queued",
-            CreatedAt: DateTime.UtcNow
+            Message: "Mock build dispatched successfully (Test Mode)."
         );
 
-        return Task.FromResult(status);
+        return Task.FromResult(result);
+    }
+
+    public Task<string?> GetStatusAsync(string tag)
+    {
+        return Task.FromResult<string?>("success");
+    }
+
+    public Task<string> GetLogsAsync(string tag)
+    {
+        var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        var mockLogs = $"[MOCK {now}] Mock Build Provider Test Environment Console Trace.\n" +
+                       $"[INFO {now}] Simulating build execution for Tag: {tag}...\n" +
+                       $"[INFO {now}] Step 1: Mocking Docker image build (harbor.datactive.net/datateam/datactive.web:{tag})...\n" +
+                       $"[INFO {now}] Step 2: Mocking Kustomize overlay generation...\n" +
+                       $"[SUCCESS {now}] Mock pipeline completed with status: SUCCESS.";
+        return Task.FromResult(mockLogs);
     }
 }
