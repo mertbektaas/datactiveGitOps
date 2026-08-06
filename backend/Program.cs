@@ -77,10 +77,23 @@ else
     });
 }
 
+// Configure CORS Policy for Frontend (K1.12)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Solution 2: ASP.NET Core Built-in HealthChecks Service
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.UseCors("AllowAll");
 
 // Map /health endpoint with custom JSON output format
 app.MapHealthChecks("/health", new HealthCheckOptions
