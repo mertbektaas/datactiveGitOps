@@ -6,13 +6,22 @@ resources:
   - "../../base"
 
 images:
-  - name: harbor.datactive.net/datateam/datactive.web
+  - name: datactive-registry:5000/datateam/datactive.web
     newTag: "BUILD-20260806-145927"
 
 configMapGenerator:
   - name: datactive-config
     behavior: merge
     literals:
-      - DQLSchema=schema_dev
-      - CustomerMetadataSchema=schema_dev.
-      - ORACLEDataSchema=schema_dev.
+      - DQLSchema=final_test
+      - CustomerMetadataSchema=final_test.
+      - ORACLEDataSchema=final_test.
+
+patches:
+  - target:
+      kind: Deployment
+      name: datactive-web
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: datactive-registry:5000/datateam/datactive.web:BUILD-20260806-145927
