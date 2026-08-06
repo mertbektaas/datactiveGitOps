@@ -24,6 +24,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Add MemoryCache for GitHub API Rate Limit protection (K1.6)
 builder.Services.AddMemoryCache();
 
+// Register Tag Generator Service (Solution 1 for K1.11)
+builder.Services.AddSingleton<ITagGeneratorService, TagGeneratorService>();
+
 // Configure GitHub Options (K1.5)
 builder.Services.Configure<GitHubOptions>(builder.Configuration.GetSection(GitHubOptions.SectionName));
 
@@ -130,20 +133,32 @@ app.MapGet("/api/branches", async (string? repo, IGitHubService gitHubService, I
     }
 });
 
-// [FAZ-3] K1.8 — Real/Mock Build Dispatch Endpoint
-app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider, ILogger<Program> logger) =>
+// [FAZ-4] K1.11 — Generate Tag Utility Endpoint
+app.MapGet("/api/tags/generate", (string? branchWeb, string? branchServer, ITagGeneratorService tagGenerator) =>
+{
+    var generatedTag = tagGenerator.GenerateTag(branchWeb, branchServer);
+    return Results.Ok(new { tag = generatedTag });
+});
+
+// [FAZ-3] K1.8 & K1.11 — Real/Mock Build Dispatch Endpoint with Auto-Tag Generation Support
+app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildProvider, ITagGeneratorService tagGenerator, ILogger<Program> logger) =>
 {
     if (string.IsNullOrWhiteSpace(request.BranchWeb) ||
         string.IsNullOrWhiteSpace(request.BranchServer) ||
-        string.IsNullOrWhiteSpace(request.Schema) ||
-        string.IsNullOrWhiteSpace(request.Tag))
+        string.IsNullOrWhiteSpace(request.Schema))
     {
-        return Results.BadRequest(new { error = "Tüm alanlar (branch_web, branch_server, schema, tag) zorunludur." });
+        return Results.BadRequest(new { error = "Alanlar (branch_web, branch_server, schema) zorunludur." });
     }
+
+    var tag = string.IsNullOrWhiteSpace(request.Tag) || request.Tag.Equals("auto", StringComparison.OrdinalIgnoreCase)
+        ? tagGenerator.GenerateTag(request.BranchWeb, request.BranchServer)
+        : request.Tag;
+
+    var finalRequest = request with { Tag = tag };
 
     try
     {
-        var result = await buildProvider.DispatchBuildAsync(request);
+        var result = await buildProvider.DispatchBuildAsync(finalRequest);
         return Results.Ok(result);
     }
     catch (KeyNotFoundException ex)
@@ -158,7 +173,7 @@ app.MapPost("/api/builds", async (BuildRequestDto request, IBuildProvider buildP
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Error dispatching build for Tag: {Tag}", request.Tag);
+        logger.LogError(ex, "Error dispatching build for Tag: {Tag}", tag);
         return Results.Problem(detail: "Build tetikleme sırasında hata oluştu: " + ex.Message, statusCode: 502, title: "Build Tetikleme Hatası");
     }
 });
