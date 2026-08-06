@@ -1,0 +1,51 @@
+# ArgoCD AppProject — Build Uygulamaları (K2.19)
+# Production: kubectl apply -f manifests/argocd/appproject.yaml
+# Kapsam: build-* namespace'leri + yalnızca datactiveGitOps repo'su
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: build-project
+  namespace: argocd
+spec:
+  # Kaynak repolar — sadece datactiveGitOps (K2.19: en az yetki)
+  sourceRepos:
+    - "https://github.com/mertbektaas/datactiveGitOps.git"
+
+  # Hedefler — sadece build-* namespace'leri, sadece bu cluster
+  destinations:
+    - namespace: "build-*"
+      server: "https://kubernetes.default.svc"
+
+  # Kaynak beyaz listesi — sadece gerekli kaynak tipleri (K2.19)
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Namespace
+    - group: bitnami.com
+      kind: SealedSecret
+
+  # Build uygulamaları kalıcı tutulur (C6.1) — silme koruması
+  syncWindows: []
+
+  roles:
+    # ci-builder rolü: yalnızca build-* uygulamalarını yönetir
+    - name: ci-builder
+      description: "CI sistemi — build uygulamaları oluşturur/sync eder"
+      policies:
+        - p, proj:build-project:ci-builder, applications, get, build-project/*, allow
+        - p, proj:build-project:ci-builder, applications, create, build-project/*, allow
+        - p, proj:build-project:ci-builder, applications, sync, build-project/*, allow
+        - p, proj:build-project:ci-builder, applications, update, build-project/*, allow
+      groups:
+        - ci-builder
