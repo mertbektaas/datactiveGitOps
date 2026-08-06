@@ -43,7 +43,7 @@ public class GitHubBuildProvider : IBuildProvider
 
         var payload = new
         {
-            ref_name = "main",
+            @ref = "main",
             inputs = new
             {
                 tag = request.Tag,
