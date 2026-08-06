@@ -1,0 +1,47 @@
+name: validate-overlay
+description: |
+  Kustomize overlay doğrulayıcı.
+  Verilen overlay path için kustomize build çalıştırır;
+  bozuk/eksik overlay fail döner (ArgoCD'den önce güvenlik ağı).
+
+inputs:
+  overlay_path:
+    description: "Doğrulanacak overlay klasörü (repo köküne göre)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Kustomize kur (yoksa)
+      shell: bash
+      run: |
+        if ! command -v kustomize >/dev/null 2>&1; then
+          KUSTOMIZE_VERSION=v5.4.3
+          curl -sSLo /tmp/kustomize.tar.gz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_arm64.tar.gz"
+          tar -xzf /tmp/kustomize.tar.gz -C /usr/local/bin kustomize
+          rm /tmp/kustomize.tar.gz
+        fi
+        kustomize version
+
+    - name: Overlay doğrula
+      shell: bash
+      run: |
+        OVERLAY="${{ inputs.overlay_path }}"
+
+        if [[ ! -f "$OVERLAY/kustomization.yaml" ]]; then
+          echo "HATA: $OVERLAY/kustomization.yaml bulunamadı."
+          echo "      Geçerli bir overlay en az kustomization.yaml içermelidir."
+          exit 1
+        fi
+
+        echo "==> kustomize build $OVERLAY"
+        if ! kustomize build "$OVERLAY" > /tmp/kustomize-output.yaml; then
+          echo "HATA: kustomize build başarısız — overlay bozuk."
+          echo "      ArgoCD bu overlay'i uygulayamazdı."
+          exit 1
+        fi
+
+        COUNT=$(grep -c '^kind:' /tmp/kustomize-output.yaml || true)
+        echo "OK: Overlay geçerli — $COUNT kaynak üretildi."
+        rm -f /tmp/kustomize-output.yaml
