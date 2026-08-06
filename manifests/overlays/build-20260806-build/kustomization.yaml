@@ -7,12 +7,12 @@ resources:
 
 images:
   - name: harbor.datactive.net/datateam/datactive.web
-    newTag: "BUILD-20260806-135906"
+    newTag: "BUILD-20260806-140358"
 
 configMapGenerator:
   - name: datactive-config
     behavior: merge
     literals:
-      - DQLSchema=schema_final_test
-      - CustomerMetadataSchema=schema_final_test.
-      - ORACLEDataSchema=schema_final_test.
+      - DQLSchema=schema_dev
+      - CustomerMetadataSchema=schema_dev.
+      - ORACLEDataSchema=schema_dev.
