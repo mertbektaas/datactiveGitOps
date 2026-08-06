@@ -1,6 +1,7 @@
 name: build-datactive
 description: |
-  DatActive web + server image build (Kaniko, daemon'sız).
+  DatActive web + server image build (Buildkit, daemon'sız).
+  Job container: moby/buildkit (buildkitd + buildctl hazır içinde).
   İki repoyu checkout eder, WORKDIR altında birleştirir ve
   datactive.core.server/configurations/Dockerfile ile image üretir.
 
@@ -37,49 +38,42 @@ runs:
     - name: Workdir hazırla
       shell: bash
       run: |
-        WORKDIR=$(mktemp -d /tmp/datactive-build-XXXXXX)
+        WORKDIR="${{ github.workspace }}/datactive-build"
+        mkdir -p "$WORKDIR"
         echo "workdir=$WORKDIR" >> "$GITHUB_ENV"
         echo "WORKDIR=$WORKDIR"
 
     - name: Web repo checkout
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.web_repo }}
-        ref: ${{ inputs.branch_web }}
-        path: ${{ env.workdir }}/datactive.web
-        token: ${{ inputs.token }}
+      shell: bash
+      env:
+        REPO_URL: "https://x-access-token:${{ inputs.token }}@github.com/${{ inputs.web_repo }}.git"
+      run: |
+        git clone --depth 1 --branch "${{ inputs.branch_web }}" \
+          "$REPO_URL" "${{ env.workdir }}/datactive.web"
 
     - name: Server repo checkout
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.server_repo }}
-        ref: ${{ inputs.branch_server }}
-        path: ${{ env.workdir }}/datactive.core.server
-        token: ${{ inputs.token }}
-
-    - name: Kaniko binary indir
       shell: bash
+      env:
+        REPO_URL: "https://x-access-token:${{ inputs.token }}@github.com/${{ inputs.server_repo }}.git"
       run: |
-        curl -sSLo /tmp/kaniko.tar.gz \
-          https://github.com/GoogleContainerTools/kaniko/releases/download/v1.23.2/kaniko-executor-linux-amd64.tar.gz
-        tar -xzf /tmp/kaniko.tar.gz -C /tmp
-        chmod +x /tmp/kaniko-executor
-        /tmp/kaniko-executor --version
+        git clone --depth 1 --branch "${{ inputs.branch_server }}" \
+          "$REPO_URL" "${{ env.workdir }}/datactive.core.server"
 
-    - name: Image build (Kaniko)
+    - name: Image build (buildctl → buildkitd daemon)
       shell: bash
+      env:
+        # Cluster'daki buildkitd daemon'ı (arc-runners namespace)
+        BUILDKIT_HOST: tcp://buildkitd.arc-runners.svc:1234
       run: |
-        /tmp/kaniko-executor \
-          --context "${{ env.workdir }}" \
-          --dockerfile "${{ env.workdir }}/datactive.core.server/configurations/Dockerfile" \
-          --destination "${{ inputs.image_name }}:${{ inputs.tag }}" \
-          --cache=true \
-          --cache-repo "harbor.datactive.net/datateam/cache" \
-          --force
+        buildctl build \
+          --frontend dockerfile.v0 \
+          --local context="${{ env.workdir }}" \
+          --local dockerfile="${{ env.workdir }}/datactive.core.server/configurations" \
+          --output type=image,name="${{ inputs.image_name }}:${{ inputs.tag }}",push=true
 
     - name: Workdir temizle
       shell: bash
       if: always()
       run: |
-        rm -rf "${{ env.workdir }}" /tmp/kaniko.tar.gz
+        rm -rf "${{ env.workdir }}"
         echo "Temp workspace temizlendi."

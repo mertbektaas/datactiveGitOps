@@ -23,7 +23,13 @@ on:
 jobs:
   build:
     runs-on: arc-runner-set
+    container:
+      image: datactive-registry:5000/datateam/datactive-build:latest
+      options: --privileged
     steps:
+      - name: Checkout (local action için)
+        uses: actions/checkout@v4
+
       - name: Inputs
         run: |
           echo "branch_web=${{ inputs.branch_web }}"
@@ -38,3 +44,4 @@ jobs:
           branch_server: ${{ inputs.branch_server }}
           tag: ${{ inputs.tag }}
           token: ${{ secrets.PAT_TOKEN }}
+          image_name: datactive-registry:5000/datateam/datactive.web
