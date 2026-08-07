@@ -29,7 +29,7 @@ spec:
 
       containers:
         - name: app
-          image: harbor.datactive.net/datateam/datactive.web:placeholder
+          image: datactive-registry:5000/datateam/datactive.web:placeholder
           imagePullPolicy: IfNotPresent
 
           ports:
