@@ -26,7 +26,7 @@ public class ArgoCdService : IArgoCdService
                 metadata = new { name = appName },
                 spec = new
                 {
-                    project = "default",
+                    project = "build-project",
                     source = new
                     {
                         repoURL = "https://github.com/mertbektaas/datactiveGitOps.git",
