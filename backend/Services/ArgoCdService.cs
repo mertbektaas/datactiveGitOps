@@ -44,6 +44,10 @@ public class ArgoCdService : IArgoCdService
                         {
                             prune = true,
                             selfHeal = true
+                        },
+                        syncOptions = new[]
+                        {
+                            "CreateNamespace=true"
                         }
                     }
                 }
@@ -84,7 +88,8 @@ public class ArgoCdService : IArgoCdService
             var syncPayload = new
             {
                 prune = true,
-                dryRun = false
+                dryRun = false,
+                syncOptions = new[] { "CreateNamespace=true" }
             };
 
             using var syncRequest = new HttpRequestMessage(HttpMethod.Post, $"api/v1/applications/{appName}/sync")
