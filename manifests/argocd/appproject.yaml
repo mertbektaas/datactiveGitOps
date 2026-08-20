@@ -34,6 +34,8 @@ spec:
       kind: Secret
     - group: ""
       kind: Namespace
+    - group: ""
+      kind: PersistentVolumeClaim
     - group: bitnami.com
       kind: SealedSecret
 
