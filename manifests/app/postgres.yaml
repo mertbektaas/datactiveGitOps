@@ -1,0 +1,71 @@
+# PostgreSQL deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datactive-postgres
+  labels:
+    app: datactive-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datactive-postgres
+  template:
+    metadata:
+      labels:
+        app: datactive-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: pg
+          env:
+            - name: POSTGRES_DB
+              value: "datactive_gitops"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "postgres"
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+      volumes:
+        - name: pg-data
+          persistentVolumeClaim:
+            claimName: datactive-postgres-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: datactive-postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datactive-postgres
+  labels:
+    app: datactive-postgres
+spec:
+  selector:
+    app: datactive-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: pg
+  type: ClusterIP

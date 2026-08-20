@@ -12,9 +12,11 @@ spec:
   sourceRepos:
     - "https://github.com/mertbektaas/datactiveGitOps.git"
 
-  # Hedefler — sadece build-* namespace'leri, sadece bu cluster
+  # Hedefler — sadece build-* ve datactive namespace'leri, sadece bu cluster
   destinations:
     - namespace: "build-*"
+      server: "https://kubernetes.default.svc"
+    - namespace: "datactive"
       server: "https://kubernetes.default.svc"
 
   # Kaynak beyaz listesi — sadece gerekli kaynak tipleri (K2.19)

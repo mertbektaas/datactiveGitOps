@@ -1,0 +1,15 @@
+# Uygulama katmanı (backend + frontend + postgres) — Kustomize base
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: datactive
+
+resources:
+  - backend.yaml
+  - frontend.yaml
+  - postgres.yaml
+
+commonLabels:
+  app.kubernetes.io/name: datactive
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: datactive-gitops

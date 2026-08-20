@@ -1,0 +1,103 @@
+# Backend (.NET API) deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datactive-backend
+  labels:
+    app: datactive-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datactive-backend
+  template:
+    metadata:
+      labels:
+        app: datactive-backend
+    spec:
+      containers:
+        - name: backend
+          image: datactive-registry:5000/datateam/datactive-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: ConnectionStrings__DefaultConnection
+              value: "Host=datactive-postgres;Port=5432;Database=datactive_gitops;Username=postgres;Password=postgres"
+            - name: BuildProvider
+              value: "GitHub"
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: datactive-secrets
+                  key: github-token
+            - name: GitHub__Owner
+              value: "mertbektaas"
+            - name: GitHub__BuildRepo
+              value: "datactiveGitOps"
+            - name: GitHub__WorkflowId
+              value: "build.yml"
+            - name: GitHub__WebRepo
+              value: "datateam-web"
+            - name: GitHub__ServerRepo
+              value: "datateam-core.server"
+            - name: Registry__Image
+              value: "datactive-registry:5000/datateam/datactive.web"
+            - name: ArgoCd__BaseUrl
+              value: "http://argocd-server.argocd.svc.cluster.local"
+            - name: ArgoCd__Token
+              valueFrom:
+                secretKeyRef:
+                  name: datactive-secrets
+                  key: argocd-token
+            - name: Auth__AdminUsername
+              value: "admin"
+            - name: Auth__AdminPassword
+              valueFrom:
+                secretKeyRef:
+                  name: datactive-secrets
+                  key: auth-admin-password
+            - name: Auth__JwtSigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: datactive-secrets
+                  key: auth-jwt-signing-key
+            - name: Cors__AllowedOrigins
+              value: "http://localhost:8081"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datactive-backend
+  labels:
+    app: datactive-backend
+spec:
+  selector:
+    app: datactive-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  type: ClusterIP
